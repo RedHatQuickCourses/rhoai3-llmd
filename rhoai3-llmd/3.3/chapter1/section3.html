@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Day 2: Observability &amp; Proving ROI :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <link rel="prev" href="section2.html">
+    <link rel="next" href="section4.html">
+    <meta name="description" content="Monitor llm-d workloads, Golden Signals, and Kueue alerts.">
+    <meta name="generator" content="Antora 3.1.3">
+    <link rel="stylesheet" href="../../../_/css/site.css">
+    <script>var uiRootPath = '../../../_'</script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://www.redhat.com" target="_blank"><img src="../../../_/img/redhat-logo.png" height="40px" alt="Red Hat"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="../../..">Industrializing Inference Maximizing GPU ROI with llm-d</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://github.com/RedHatQuickCourses/REPLACEREPONAME/issues" target="_blank">Report Issues</a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="rhoai3-llmd" data-version="3.3">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="../index.html">Introduction &amp; Value</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="index.html">Introduction &amp; Value</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section4.html">Troubleshooting</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section6.html">Summary</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Industrializing Inference Maximizing GPU ROI with llm-d</span>
+    <span class="version">3.3</span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <a class="title" href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a>
+      <ul class="versions">
+        <li class="version is-current is-latest">
+          <a href="../index.html">3.3</a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></li>
+    <li><a href="index.html">Introduction &amp; Value</a></li>
+    <li><a href="section3.html">Day 2 — Observability</a></li>
+  </ul>
+</nav>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Day 2: Observability &amp; Proving ROI</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph lead">
+<p><strong>You cannot optimize what you cannot measure.</strong></p>
+</div>
+<div class="paragraph">
+<p>Day 1 is deploying the model. Day 2 is where the bill and the metrics show up. In a shadow-AI setup, teams fly blind until users complain. In the AI factory, observability is built in: you can see exactly what your llm-d workloads consume and prove GPU ROI.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_golden_signals_of_distributed_inference"><a class="anchor" href="#_golden_signals_of_distributed_inference"></a>Golden Signals of Distributed Inference</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Beyond basic CPU/RAM, focus on these vLLM/llm-d signals:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>KV cache usage:</strong> If KV cache is consistently near full (e.g. &gt;95%), workers may pause to swap; consider more replicas or a lower <code>--max-model-len</code>.</p>
+</li>
+<li>
+<p><strong>TPOT</strong> (<code>vllm_llmd_time_per_output_token_seconds</code>): Generation speed.</p>
+</li>
+<li>
+<p><strong>TTFT</strong> (<code>vllm_llmd_time_to_first_token_seconds</code>): Time until the model starts responding; the scheduler optimizes for this by routing to the least-burdened pods.</p>
+</li>
+<li>
+<p><strong>GPU utilization</strong> (<code>vllm_llmd_gpu_utilization_seconds</code>): Confirms GPUs are doing work, not idling.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_workload_metrics_in_the_dashboard"><a class="anchor" href="#_workload_metrics_in_the_dashboard"></a>Workload metrics in the dashboard</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>OpenShift AI 3.x provides workload metrics for your projects. In the dashboard, go to <strong>Observe &amp; monitor → Workload metrics</strong>, select your project (e.g. <code>llmd-deploy-lab</code>), and review <strong>Top resource-consuming distributed workloads</strong>. You can confirm CPU, memory, and GPU usage and that load is distributed across replicas.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_kueue_and_alerts"><a class="anchor" href="#_kueue_and_alerts"></a>Kueue and alerts</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>llm-d handles <strong>routing</strong>; <strong>Kueue</strong> handles <strong>who gets GPU quota</strong>. When you hit hardware or quota limits, Kueue queues workloads and can fire alerts. In <strong>Observe → Alerting</strong>, watch for:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>KueuePodDown:</strong> Kueue pod not ready for a sustained period; no new workloads can be admitted.</p>
+</li>
+<li>
+<p><strong>PendingWorkloadPods:</strong> Pods pending for a long time; cluster may be out of GPUs or quota.</p>
+</li>
+<li>
+<p><strong>ResourceReservationExceedsQuota:</strong> Requests far exceed allowed quota; review manifests and quotas.</p>
+</li>
+<li>
+<p><strong>LowClusterQueueResourceUsage:</strong> Queue usage low for a long time; consider reallocating quota.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Use the Runbook links in the alert details for recommended actions.</p>
+</div>
+<hr>
+<div class="paragraph">
+<p><strong>Next: Troubleshooting common issues.</strong></p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="section2.html">Lab — Deploy llm-d</a></span>
+  <span class="next"><a href="section4.html">Troubleshooting</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <img src="../../../_/img/rhl-logo-red.png" height="40px" alt="Red Hat"  href="https://redhat.com" >
+</footer><script id="site-script" src="../../../_/js/site.js" data-ui-root-path="../../../_"></script>
+<script async src="../../../_/js/vendor/highlight.js"></script>
+  </body>
+</html>

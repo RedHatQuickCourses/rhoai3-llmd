@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Introduction &amp; Business Value :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <link rel="prev" href="../index.html">
+    <link rel="next" href="section1.html">
+    <meta name="description" content="Business value, architecture overview, and prerequisites for Distributed Inference (llm-d) on OpenShift AI 3.x.">
+    <meta name="generator" content="Antora 3.1.3">
+    <link rel="stylesheet" href="../../../_/css/site.css">
+    <script>var uiRootPath = '../../../_'</script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://www.redhat.com" target="_blank"><img src="../../../_/img/redhat-logo.png" height="40px" alt="Red Hat"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="../../..">Industrializing Inference Maximizing GPU ROI with llm-d</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://github.com/RedHatQuickCourses/REPLACEREPONAME/issues" target="_blank">Report Issues</a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="rhoai3-llmd" data-version="3.3">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="../index.html">Introduction &amp; Value</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="index.html">Introduction &amp; Value</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section4.html">Troubleshooting</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="section6.html">Summary</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Industrializing Inference Maximizing GPU ROI with llm-d</span>
+    <span class="version">3.3</span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <a class="title" href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a>
+      <ul class="versions">
+        <li class="version is-current is-latest">
+          <a href="../index.html">3.3</a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></li>
+    <li><a href="index.html">Introduction &amp; Value</a></li>
+  </ul>
+</nav>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Introduction &amp; Business Value</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph lead">
+<p><strong>Stop treating GPUs like personal laptops. Start running them like a high-throughput factory.</strong></p>
+</div>
+<div class="paragraph">
+<p>In the experimental phase of Generative AI, organizations tolerate massive inefficiencies. A team might allocate an 80GB NVIDIA H100 to serve a single monolithic chatbot, so the GPU sits idle for hours while still burning budget. When traffic spikes, that single pod becomes a bottleneck: requests queue, latencies spike, and the user experience degrades.</p>
+</div>
+<div class="paragraph">
+<p>This is the traditional <strong>static serving</strong> problem. To build a true <strong>AI factory</strong>, you must move beyond static serving and implement <strong>Distributed Inference</strong>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_solution_distributed_inference_llm_d"><a class="anchor" href="#_the_solution_distributed_inference_llm_d"></a>The Solution: Distributed Inference (llm-d)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In Red Hat OpenShift AI 3.x, the <strong>llm-d</strong> (Large Language Model Distributed) framework turns monolithic deployments into intelligent, distributed microservices. It acts as the traffic cop for your compute: sitting behind the OpenShift Gateway API, it intercepts requests and routes them to the right vLLM worker pods. By decoupling orchestration (how traffic is routed) from execution (how the model runs), llm-d lets you treat your GPU cluster as one efficient engine.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_three_pillars_of_business_value"><a class="anchor" href="#_three_pillars_of_business_value"></a>Three Pillars of Business Value</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_1_optimized_tco_stop_paying_for_idle_gpus"><a class="anchor" href="#_1_optimized_tco_stop_paying_for_idle_gpus"></a>1. Optimized TCO — Stop Paying for Idle GPUs</h3>
+<div class="paragraph">
+<p>Static deployments lock expensive hardware to single applications. llm-d enables safe, high-density resource sharing. The Inference Scheduler monitors queue length and active workers and routes traffic to the least-burdened nodes, so you pack more users and models onto the same hardware and lower cost-per-token.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_2_guaranteed_performance_reduced_latency"><a class="anchor" href="#_2_guaranteed_performance_reduced_latency"></a>2. Guaranteed Performance &amp; Reduced Latency</h3>
+<div class="paragraph">
+<p>In a monolithic setup, a heavy batch job can block a fast chatbot query. With vLLM and continuous batching at the worker level, plus llm-d load balancing, requests are processed concurrently. Users get consistent, low Time-To-First-Token (TTFT) and generation speed (TPOT).</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_3_sovereign_control_data_security"><a class="anchor" href="#_3_sovereign_control_data_security"></a>3. Sovereign Control &amp; Data Security</h3>
+<div class="paragraph">
+<p>Relying on public inference APIs means proprietary context leaves your perimeter. With llm-d, prompts and RAG context are processed entirely inside your OpenShift cluster—never sent to a third-party API. You get high-throughput inference while keeping compliance and data sovereignty.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_stack_overview"><a class="anchor" href="#_stack_overview"></a>Stack Overview</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Gateway API:</strong> Smart front door; intercepts requests and asks the scheduler where to send them.</p>
+</li>
+<li>
+<p><strong>Inference Scheduler (llm-d):</strong> Evaluates health, capacity, and cache affinity of workers and chooses the best destination.</p>
+</li>
+<li>
+<p><strong>vLLM workers:</strong> Execution engines in your namespace; they load the model and serve inference using PagedAttention and continuous batching.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Your cluster must have:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Kubernetes:</strong> OpenShift 4.19+ (4.20 recommended) with compliant Gateway API.</p>
+</li>
+<li>
+<p><strong>Compute:</strong> Data-center GPUs (e.g. NVIDIA L40S, A100, H100); NVIDIA GPU Operator and Node Feature Discovery (NFD).</p>
+</li>
+<li>
+<p><strong>Operators:</strong> Leader Worker Set (LWS) Operator for llm-d pod fleets.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Kueue manages <strong>who</strong> gets GPUs (quotas and queuing); llm-d manages <strong>where</strong> live traffic goes. For quota and queue setup, see the companion course on hardware profiles and GPU-as-a-Service.</p>
+</div>
+<hr>
+<div class="paragraph">
+<p><strong>Ready to see how the pieces fit together? Next: Architecture deep dive.</strong></p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="../index.html">Introduction &amp; Value</a></span>
+  <span class="next"><a href="section1.html">Architecture Deep Dive</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <img src="../../../_/img/rhl-logo-red.png" height="40px" alt="Red Hat"  href="https://redhat.com" >
+</footer><script id="site-script" src="../../../_/js/site.js" data-ui-root-path="../../../_"></script>
+<script async src="../../../_/js/vendor/highlight.js"></script>
+  </body>
+</html>
