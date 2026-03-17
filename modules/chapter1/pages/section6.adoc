@@ -1,0 +1,27 @@
+= Summary & Next Steps
+:navtitle: Summary
+:toc: macro
+:description: Outcomes, caveats, and next steps for llm-d on OpenShift AI 3.x.
+
+[.lead]
+*You are no longer just "running a model." You are managing a distributed inference system.*
+
+By deploying **Distributed Inference with llm-d** on Red Hat OpenShift AI 3.x, you have moved from static, single-pod serving to a platform that delivers:
+
+* **Optimized TCO:** Intelligent scheduling and cache-aware routing let you pack more models and users onto the same hardware and lower cost-per-token.
+* **Predictable performance:** Separation of prefill and decode (in advanced topologies) and load-aware routing keep latency consistent under load.
+* **Sovereign control:** Data and prompts stay inside your OpenShift perimeter.
+
+== Implementation notes (OpenShift AI 3.x)
+
+* **Status in the UI:** Models may briefly show *Failed* in the dashboard while initializing. Check pod logs; status often flips to *Started* when ready.
+* **Topologies:** Multi-node on certain hardware (e.g. GB200) may not be supported. Wide Expert-Parallelism (multi-node) may be in Developer Preview; confirm in product documentation.
+
+== Next steps
+
+* **Scale:** Increase `replicas` in your `LLMInferenceService` and re-apply; the Gateway and Scheduler will spread traffic.
+* **MaaS:** llm-d is the recommended runtime for Models-as-a-Service (MaaS) in OpenShift AI 3.x; combine with Gateway API and Kuadrant for API-first, governed endpoints.
+* **Governance:** Add TrustyAI and guardrails for safety and compliance once the inference path is stable.
+
+---
+*End of course. For quick deployment without the full narrative, use the README Quick Start.*

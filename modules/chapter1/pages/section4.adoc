@@ -1,0 +1,54 @@
+= Troubleshooting & FAQs
+:navtitle: Troubleshooting
+:toc: macro
+:description: Common blockers and fixes for llm-d deployment on OpenShift AI 3.x.
+
+[.lead]
+*Use this playbook when deployment or routing does not behave as expected.*
+
+== Pods stuck in Pending
+
+* **Symptom:** Pods (e.g. decode or vLLM workers) stay in `Pending`.
+* **Cause:** Node taints (e.g. `NVIDIA-L40S-PRIVATE`) without matching tolerations on the deployment.
+* **Fix:** Add the required toleration to the deployment or use a Hardware Profile that includes it. Example patch:
+
+[source,bash]
+----
+oc patch deployment <deployment-name> -n <namespace> \
+  -p '{"spec":{"template":{"spec":{"tolerations":[{"key":"nvidia.com/gpu", "operator": "Equal", "value": "NVIDIA-L40S-PRIVATE", "effect": "NoSchedule"}]}}}}'
+----
+
+== MachineSets scaling down
+
+* **Symptom:** GPU nodes or MachineSets scale down during setup.
+* **Cause:** In labs using spot or autoscaling, the cluster autoscaler may scale down when it sees idle periods.
+* **Fix:** Temporarily pin the MachineSet replica count (e.g. ensure at least 2 nodes for multi-replica or disaggregated labs):
+
+[source,bash]
+----
+oc scale machineset <gpu-machineset-name> -n openshift-machine-api --replicas=2
+----
+
+== Gateway address empty
+
+* **Symptom:** `oc get gateways` shows no address.
+* **Cause:** The underlying ingress/Load Balancer has not received an address from the cloud provider.
+* **Fix:** Check services in the ingress namespace (e.g. `oc get svc -n istio-system`) and verify cloud Load Balancer quota.
+
+== 403 Forbidden on inference requests
+
+* **Symptom:** `curl` to the inference URL returns 403.
+* **Cause:** Auth (e.g. Authorino) is enabled and the request is missing or has an invalid `Authorization` header.
+* **Fix:** Create a token and pass it in the header:
+
+[source,bash]
+----
+export TOKEN=$(oc create token default -n <namespace>)
+curl -k -H "Authorization: Bearer $TOKEN" -X POST "<inference-url>/v1/chat/completions" ...
+----
+
+== Dashboard shows Failed while pods are running
+
+* **Symptom:** Model or service shows *Failed* in the UI but pods are Running.
+* **Cause:** UI sync delay while images pull or pods initialize.
+* **Fix:** Check pod logs (`oc logs -f <pod> -n <namespace>`). Status often flips to *Started* when the workload is ready.

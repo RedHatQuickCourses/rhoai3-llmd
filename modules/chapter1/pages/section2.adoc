@@ -1,6 +1,124 @@
-= Section 2
+= Lab: Deploy Distributed Inference (llm-d)
+:navtitle: Lab — Deploy llm-d
+:toc: macro
+:description: Deploy a distributed inference service using LLMInferenceService, Gateway API, and GitOps.
 
-* Create multiple copies of this section as needed.
-* Remove any unnecessary sections or chapter pages.
-* Customize the section as appropriate.
-* Ensure that each page contains a manageable amount of content.
+[.lead]
+*Static routing is a bottleneck. Let the scheduler do the heavy lifting.*
+
+In traditional serving, an ingress round-robins traffic. If Pod A is processing a 10,000-token document and Pod B is idle, the router might still send the next request to Pod A and cause a timeout. llm-d fixes that by routing to the least-burdened vLLM worker.
+
+In this lab you deploy an `LLMInferenceService` via GitOps. The operator configures the Gateway to query the Inference Scheduler and route traffic to the right worker.
+
+[IMPORTANT]
+.Scope
+====
+* **In scope:** Intelligent request routing, rapid deployment, Gateway API integration.
+* **Out of scope:** Multi-node Wide Expert-Parallelism, disaggregated Prefill/Decode, TrustyAI guardrails. Goal: solid foundational llm-d deployment.
+====
+
+== Step 1: Environment setup
+
+Use the deployment repo script to create the namespace, MinIO vault, Data Connections, and stage the `granite-3.3-2b-instruct` model.
+
+. Clone the deployment repository:
++
+[source,bash]
+----
+git clone https://github.com/RedHatQuickCourses/rhoai3-llmd-deploy.git
+cd rhoai3-llmd-deploy
+----
+
+. Run the setup script:
++
+[source,bash]
+----
+chmod u+x deploy/setup-llmd-env.sh
+./deploy/setup-llmd-env.sh
+----
+
+Wait for output: `SUCCESS: Namespace, Vault, and Model Staged.`
+
+== Step 2: Deploy the workload
+
+Use the `LLMInferenceService` CR (not the standard `InferenceService`). One manifest creates the vLLM worker fleet and the Inference Scheduler.
+
+Example `llmd-deployment.yaml`:
+
+[source,yaml]
+----
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: granite-distributed
+  namespace: llmd-deploy-lab
+  annotations:
+    opendatahub.io/model-type: generative
+spec:
+  replicas: 2
+  model:
+    uri: s3://models/granite3
+    name: granite-3.3-2b-instruct
+  router:
+    scheduler:
+      template:
+        containers:
+          - name: main
+            args:
+              - '--pool-group'
+              - 'inference.networking.x-k8s.io'
+              - '--pool-name'
+              - '{{ .ObjectMeta.Name }}-inference-pool'
+              - '--zap-encoder'
+              - 'json'
+  template:
+    containers:
+      - name: main
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: "--max-model-len=16000 --gpu-memory-utilization=0.95"
+        resources:
+          limits:
+            nvidia.com/gpu: "1"
+            memory: 12Gi
+----
+
+Apply and wait for Ready:
+
+[source,bash]
+----
+oc apply -f ./deploy/llmd-deployment.yaml
+oc wait --for=condition=Ready llminferenceservice/granite-distributed -n llmd-deploy-lab --timeout=300s
+----
+
+== Step 3: Verify Gateway and HTTPRoute
+
+Traffic must go through the Gateway API so the scheduler can intercept it. Confirm the route:
+
+[source,bash]
+----
+oc get httproute -n llmd-deploy-lab
+----
+
+You should see an HTTPRoute for `granite-distributed` referencing the `openshift-ai-inference` gateway.
+
+== Step 4: Test inference
+
+Get the Gateway URL and send a request:
+
+[source,bash]
+----
+export INFERENCE_URL=$(oc get gateway openshift-ai-inference -n openshift-ingress -o jsonpath='{.status.addresses[0].value}')
+curl -k -X POST "http://$INFERENCE_URL/llmd-deploy-lab/granite-distributed/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "granite-3.3-2b-instruct",
+    "messages": [{"role": "user", "content": "Explain intelligent load balancing in 50 words."}],
+    "max_tokens": 80
+  }'
+----
+
+The client does not need to know how many GPUs or pods exist; the Gateway and Scheduler handle routing.
+
+---
+*Next: Day 2 — Observability and Golden Signals.*

@@ -1,6 +1,36 @@
-= Section 3
+= Day 2: Observability & Proving ROI
+:navtitle: Day 2 — Observability
+:toc: macro
+:description: Monitor llm-d workloads, Golden Signals, and Kueue alerts.
 
-* Create multiple copies of this section as needed.
-* Remove any unnecessary sections or chapter pages.
-* Customize the section as appropriate.
-* Ensure that each page contains a manageable amount of content.
+[.lead]
+*You cannot optimize what you cannot measure.*
+
+Day 1 is deploying the model. Day 2 is where the bill and the metrics show up. In a shadow-AI setup, teams fly blind until users complain. In the AI factory, observability is built in: you can see exactly what your llm-d workloads consume and prove GPU ROI.
+
+== Golden Signals of Distributed Inference
+
+Beyond basic CPU/RAM, focus on these vLLM/llm-d signals:
+
+* **KV cache usage:** If KV cache is consistently near full (e.g. >95%), workers may pause to swap; consider more replicas or a lower `--max-model-len`.
+* **TPOT** (`vllm_llmd_time_per_output_token_seconds`): Generation speed.
+* **TTFT** (`vllm_llmd_time_to_first_token_seconds`): Time until the model starts responding; the scheduler optimizes for this by routing to the least-burdened pods.
+* **GPU utilization** (`vllm_llmd_gpu_utilization_seconds`): Confirms GPUs are doing work, not idling.
+
+== Workload metrics in the dashboard
+
+OpenShift AI 3.x provides workload metrics for your projects. In the dashboard, go to **Observe & monitor → Workload metrics**, select your project (e.g. `llmd-deploy-lab`), and review **Top resource-consuming distributed workloads**. You can confirm CPU, memory, and GPU usage and that load is distributed across replicas.
+
+== Kueue and alerts
+
+llm-d handles *routing*; **Kueue** handles *who gets GPU quota*. When you hit hardware or quota limits, Kueue queues workloads and can fire alerts. In **Observe → Alerting**, watch for:
+
+* **KueuePodDown:** Kueue pod not ready for a sustained period; no new workloads can be admitted.
+* **PendingWorkloadPods:** Pods pending for a long time; cluster may be out of GPUs or quota.
+* **ResourceReservationExceedsQuota:** Requests far exceed allowed quota; review manifests and quotas.
+* **LowClusterQueueResourceUsage:** Queue usage low for a long time; consider reallocating quota.
+
+Use the Runbook links in the alert details for recommended actions.
+
+---
+*Next: Troubleshooting common issues.*

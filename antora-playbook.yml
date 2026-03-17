@@ -1,6 +1,6 @@
 site:
-  title: FIXME Course Title
-  start_page: REPLACEREPONAME::index.adoc
+  title: Industrializing Inference: Maximizing GPU ROI with llm-d
+  start_page: rhoai3-llmd::index.adoc
 
 content:
   sources:

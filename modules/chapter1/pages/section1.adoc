@@ -1,6 +1,61 @@
-= Section 1
+= Architecture: The Distributed Inference Stack
+:navtitle: Architecture Deep Dive
+:toc: macro
+:description: Components, Gateway API integration, and request lifecycle for llm-d on OpenShift AI 3.x.
 
-* Create multiple copies of this section as needed.
-* Remove any unnecessary sections or chapter pages.
-* Customize the section as appropriate.
-* Ensure that each page contains a manageable amount of content.
+[.lead]
+*A monolith is a liability. To scale intelligence, decouple orchestration from execution.*
+
+Industrial-grade Generative AI needs a high-performance engine at the GPU level and an intelligent control plane across the cluster. Red Hat OpenShift AI 3.x combines **vLLM** (execution) with **llm-d** (orchestration) for a production-grade stack.
+
+== Control Plane vs. Execution Plane
+
+* **Control plane (llm-d):** Orchestrator and traffic cop. It knows the health, queue length, and cache status of every worker but does not run the model.
+* **Execution plane (vLLM):** High-throughput worker engine in the pods. It uses PagedAttention for GPU memory and runs the actual inference.
+
+[NOTE]
+.The logistics analogy
+====
+* **llm-d** = air traffic control: optimizes routes and manages the fleet.
+* **vLLM** = the engine on each plane: maximum speed and efficiency per unit.
+====
+
+== Component Breakdown
+
+=== 1. Gateway API (smart router)
+
+The Gateway (e.g. in `openshift-ingress`) is the front door. It receives user requests and, instead of blindly forwarding, asks the Inference Scheduler where to send each request before forwarding the payload.
+
+=== 2. Inference Scheduler (the brain)
+
+The scheduler (External Processing Plugin / EPP) keeps a real-time view of all vLLM worker pods. It runs filter-and-score logic: filter out unhealthy or overloaded pods, then score the rest by queue length (and cache affinity when applicable) to pick the best destination.
+
+=== 3. KServe GenAI controller (factory builder)
+
+When you create an `LLMInferenceService`, this controller builds the Deployments, Services, and Route/Gateway objects that wire the Gateway to the Scheduler and the workers.
+
+=== 4. vLLM worker pods (the engine)
+
+Pods in your namespace pull model weights from your storage (e.g. S3/MinIO) and hold them in GPU memory. The Gateway forwards requests to the pod chosen by the Scheduler; the pod runs inference and streams the response back.
+
+== Request Lifecycle
+
+1. **Request in:** Client sends an OpenAI-compatible request (e.g. `/v1/chat/completions`) to the Gateway.
+2. **Gateway intercepts:** Gateway receives the traffic and holds the payload.
+3. **Scheduler called:** Gateway sends request metadata to the Inference Scheduler: *Where should this go?*
+4. **Filter and score:** Scheduler filters out bad candidates, scores the rest by load (and cache affinity).
+5. **Instruction:** Scheduler tells the Gateway which worker pod should handle the request.
+6. **Execution:** Gateway forwards the payload to that pod; the pod generates the response and streams it back through the Gateway.
+
+== Observability: Golden Signals
+
+Track these in Prometheus to prove value:
+
+| Business goal | Metric | Description |
+|---------------|--------|-------------|
+| Responsiveness | `vllm_llmd_time_to_first_token_seconds` (TTFT) | Perceived speed; keep low and stable. |
+| Throughput | `vllm_llmd_time_per_output_token_seconds` (TPOT) | Generation speed. |
+| Efficiency | `vllm_llmd_gpu_utilization_seconds` | Confirms GPUs are active, not idling. |
+
+---
+*Next: Lab — deploy llm-d with GitOps.*

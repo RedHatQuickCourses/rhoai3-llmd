@@ -1,10 +1,6 @@
-name: REPLACEREPONAME
-title: FIXME Course Title
-version: 1
+name: rhoai3-llmd
+title: Industrializing Inference: Maximizing GPU ROI with llm-d
+version: 3.3
 nav:
 - modules/ROOT/nav.adoc
-- modules/LABENV/nav.adoc
 - modules/chapter1/nav.adoc
-- modules/chapter2/nav.adoc
-- modules/chapter3/nav.adoc
-- modules/appendix/nav.adoc

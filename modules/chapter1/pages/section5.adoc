@@ -1,0 +1,30 @@
+= Simulator: Distributed Inference (Optional)
+:navtitle: Simulator (Optional)
+:toc: macro
+:description: Guided simulation of llm-d workflow without a GPU cluster.
+
+[.lead]
+*No cluster? Run a guided simulation of the full llm-d workflow.*
+
+Use this optional module if you do not have a GPU-enabled OpenShift cluster, or you want to validate the UI workflow before automating. The simulations walk through infrastructure checks, deployment, and validation.
+
+== Phase 1: Infrastructure
+
+=== Access and hardware
+
+Log in to the RHOAI console, review the dashboard, and inspect **Settings → Hardware profiles** to see how GPUs are allocated for inference. Then deploy a model from the Model Catalog.
+
+=== Operator health
+
+From the OpenShift console, install the **Leader Worker Set (LWS)** Operator (used by llm-d for pod fleets). Confirm OpenShift 4.19+ (4.20 recommended) and that you can use the terminal/CLI.
+
+== Phase 2: Deploy with llm-d
+
+Configure the llm-d serving runtime, attach the Granite model, and select the distributed hardware profile. Then inspect the **Topology** view to see the Inference Scheduler (control plane) and vLLM pods (engine), and watch pod state during deployment.
+
+== Phase 3: Validation
+
+Launch a workbench (e.g. Jupyter), connect to the inference endpoint, and validate response and latency.
+
+---
+*Next: Summary and next steps.*

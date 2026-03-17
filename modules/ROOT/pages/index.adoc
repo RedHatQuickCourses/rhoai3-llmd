@@ -1,27 +1,6 @@
-= An Example Quick Course
+= Industrializing Inference: Maximizing GPU ROI with llm-d
 :navtitle: Home
+:toc: macro
 
-== Introduction
-
-Course Title: Course title FIXME
-
-Description:
-Course description FIXME
-
-Duration: FIXME hours
-
-== Objectives
-
-On completing this course, you should be able to:
-
-* Observable, measurable objective...
-* Observable, measurable objective...
-* Observable, measurable objective...
-
-== Prerequisites
-
-This course assumes that you have the following prior experience:
-
-* Course or experience...
-* Course or experience...
-* Course or experience...
+// ROOT index includes chapter1 intro so the component home is the course intro
+include::chapter1:index.adoc[]

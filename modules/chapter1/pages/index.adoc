@@ -1,7 +1,48 @@
-= Chapter 1
+= Introduction & Business Value
+:navtitle: Introduction & Business Value
+:toc: macro
+:description: Business value, architecture overview, and prerequisites for Distributed Inference (llm-d) on OpenShift AI 3.x.
 
-In this section, we cover... FIXME
+[.lead]
+*Stop treating GPUs like personal laptops. Start running them like a high-throughput factory.*
 
+In the experimental phase of Generative AI, organizations tolerate massive inefficiencies. A team might allocate an 80GB NVIDIA H100 to serve a single monolithic chatbot, so the GPU sits idle for hours while still burning budget. When traffic spikes, that single pod becomes a bottleneck: requests queue, latencies spike, and the user experience degrades.
 
-- Add or remove section entries in the `antora.yaml` file as needed.
-- Ensure you create or delete the corresponding directory for the chapter accordingly.
+This is the traditional *static serving* problem. To build a true **AI factory**, you must move beyond static serving and implement **Distributed Inference**.
+
+== The Solution: Distributed Inference (llm-d)
+
+In Red Hat OpenShift AI 3.x, the **llm-d** (Large Language Model Distributed) framework turns monolithic deployments into intelligent, distributed microservices. It acts as the traffic cop for your compute: sitting behind the OpenShift Gateway API, it intercepts requests and routes them to the right vLLM worker pods. By decoupling orchestration (how traffic is routed) from execution (how the model runs), llm-d lets you treat your GPU cluster as one efficient engine.
+
+== Three Pillars of Business Value
+
+=== 1. Optimized TCO — Stop Paying for Idle GPUs
+
+Static deployments lock expensive hardware to single applications. llm-d enables safe, high-density resource sharing. The Inference Scheduler monitors queue length and active workers and routes traffic to the least-burdened nodes, so you pack more users and models onto the same hardware and lower cost-per-token.
+
+=== 2. Guaranteed Performance & Reduced Latency
+
+In a monolithic setup, a heavy batch job can block a fast chatbot query. With vLLM and continuous batching at the worker level, plus llm-d load balancing, requests are processed concurrently. Users get consistent, low Time-To-First-Token (TTFT) and generation speed (TPOT).
+
+=== 3. Sovereign Control & Data Security
+
+Relying on public inference APIs means proprietary context leaves your perimeter. With llm-d, prompts and RAG context are processed entirely inside your OpenShift cluster—never sent to a third-party API. You get high-throughput inference while keeping compliance and data sovereignty.
+
+== Stack Overview
+
+* **Gateway API:** Smart front door; intercepts requests and asks the scheduler where to send them.
+* **Inference Scheduler (llm-d):** Evaluates health, capacity, and cache affinity of workers and chooses the best destination.
+* **vLLM workers:** Execution engines in your namespace; they load the model and serve inference using PagedAttention and continuous batching.
+
+== Prerequisites
+
+Your cluster must have:
+
+* **Kubernetes:** OpenShift 4.19+ (4.20 recommended) with compliant Gateway API.
+* **Compute:** Data-center GPUs (e.g. NVIDIA L40S, A100, H100); NVIDIA GPU Operator and Node Feature Discovery (NFD).
+* **Operators:** Leader Worker Set (LWS) Operator for llm-d pod fleets.
+
+Kueue manages *who* gets GPUs (quotas and queuing); llm-d manages *where* live traffic goes. For quota and queue setup, see the companion course on hardware profiles and GPU-as-a-Service.
+
+---
+*Ready to see how the pieces fit together? Next: Architecture deep dive.*
