@@ -1,4 +1,4 @@
-* xref:index.adoc[Introduction & Value]
+// * xref:index.adoc[Introduction & Value]
 ** xref:section1.adoc[Architecture Deep Dive]
 ** xref:section2.adoc[Lab — Deploy llm-d]
 ** xref:section3.adoc[Day 2 — Observability]
