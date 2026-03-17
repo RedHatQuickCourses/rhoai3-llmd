@@ -1,5 +1,5 @@
 name: rhoai3-llmd
-title: Industrializing Inference: Maximizing GPU ROI with llm-d
+title: Industrializing Inference Maximizing GPU ROI with llm-d
 version: 3.3
 nav:
 - modules/ROOT/nav.adoc

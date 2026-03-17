@@ -1,5 +1,5 @@
 site:
-  title: Industrializing Inference: Maximizing GPU ROI with llm-d
+  title: Industrializing Inference Maximizing GPU ROI with llm-d
   start_page: rhoai3-llmd::index.adoc
 
 content:
