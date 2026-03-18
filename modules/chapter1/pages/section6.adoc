@@ -1,27 +1,96 @@
-= Summary & Next Steps
-:navtitle: Summary
+= Maximizing ROI & Next Steps
+:navtitle: Strategic Summary
 :toc: macro
-:description: Outcomes, caveats, and next steps for llm-d on OpenShift AI 3.x.
+
+// Antora metadata
+:page-role: Platform Architect
+:description: Synthesize the "AI Factory" capabilities, review critical implementation caveats, and explore next steps for production deployment.
 
 [.lead]
-*You are no longer just "running a model." You are managing a distributed inference system.*
+*You have built the engine. Now it is time to scale the fleet.*
 
-By deploying **Distributed Inference with llm-d** on Red Hat OpenShift AI 3.x, you have moved from static, single-pod serving to a platform that delivers:
+Congratulations. You have successfully completed the architectural transition from ad-hoc, "Shadow AI" experiments to a repeatable, economically viable **Intelligence Factory**. 
 
-* **Optimized TCO:** Intelligent scheduling and cache-aware routing let you pack more models and users onto the same hardware and lower cost-per-token.
-* **Predictable performance:** Separation of prefill and decode (in advanced topologies) and load-aware routing keep latency consistent under load.
-* **Sovereign control:** Data and prompts stay inside your OpenShift perimeter.
+By adopting **Distributed Inference with llm-d** on Red Hat OpenShift AI 3.3, you have moved beyond "best-effort" model serving. You have implemented a split-plane architecture that utilizes the OpenShift Gateway to intercept traffic and an Inference Scheduler to dynamically route workloads to the most efficient vLLM engine.
 
-== Implementation notes (OpenShift AI 3.x)
+== Mission Accomplished: The Outcomes
 
-* **Status in the UI:** Models may briefly show *Failed* in the dashboard while initializing. Check pod logs; status often flips to *Started* when ready.
-* **Topologies:** Multi-node on certain hardware (e.g. GB200) may not be supported. Wide Expert-Parallelism (multi-node) may be in Developer Preview; confirm in product documentation.
+When you present this architecture back to your business stakeholders, you can confidently demonstrate three non-negotiable outcomes:
 
-== Next steps
+[cols="1,3"]
+|===
+| **Outcome** | **Technical Driver**
 
-* **Scale:** Increase `replicas` in your `LLMInferenceService` and re-apply; the Gateway and Scheduler will spread traffic.
-* **MaaS:** llm-d is the recommended runtime for Models-as-a-Service (MaaS) in OpenShift AI 3.x; combine with Gateway API and Kuadrant for API-first, governed endpoints.
-* **Governance:** Add TrustyAI and guardrails for safety and compliance once the inference path is stable.
+| **1. Maximized ROI**
+| **Stop Paying for Idle GPUs.** +
+By moving to a shared, load-balanced Inference pool, you can safely over-provision users to the same hardware footprint. The intelligent scheduler ensures no single GPU is overwhelmed, directly lowering your cost-per-token.
 
----
-*End of course. For quick deployment without the full narrative, use the README Quick Start.*
+| **2. Guaranteed Performance**
+| **Cache-Aware Routing.** +
+By grading worker pods on their KV cache affinity (the `prefix-cache-scorer`), you ensure that users interacting with the same documents or system prompts are routed to the GPU that already has that context loaded in memory, drastically reducing Time-to-First-Token (TTFT).
+
+| **3. Sovereign Control**
+| **Total Data Ownership.** +
+Proprietary data, RAG contexts, and user prompts are processed entirely within your secure OpenShift perimeter and air-gapped vaults—never sent to a third-party API.
+|===
+
+== ImplementationCheck
+
+As you move from these lab environments to your actual production clusters, keep these specific deployment realities in mind:
+
+[WARNING]
+.Critical Caveats for RHOAI 3.3
+====
+* **The "Failed" Status False Positive:** When deploying massive models via the `LLMInferenceService`, the OpenShift AI dashboard may initially show a *Failed* status. This is often a UI timeout while the multi-gigabyte weights are being pulled into the pod's memory. Always check the pod events; the status will flip to *Started* when the vLLM engine finishes loading.
+* **The Network Fabric Limit:** Standard TCP/IP networking is sufficient for intelligent scheduling. However, if you plan to implement advanced features like **Disaggregated Serving** or **Wide Expert-Parallelism**, you *must* work with your network engineers to implement RoCE (RDMA over Converged Ethernet). Standard networks will bottleneck GPU-to-GPU communications.
+====
+
+=== Troubleshooting MaaS Access
+
+When you transition to a Models-as-a-Service architecture, you will inevitably receive helpdesk tickets from application developers claiming "the model is down." Often, the model is perfectly healthy, but the Gateway API's security layer (Kuadrant) is blocking their request.
+
+When a developer reports an issue, ask them for the HTTP status code they received. Use this cheat sheet to instantly diagnose the block:
+
+[cols="1,3"]
+|===
+| **HTTP Error Code** | **The Cause & The Fix**
+
+| **401 Unauthorized**
+| **Cause:** The developer did not pass a valid MaaS token, or the token is expired. +
+**Fix:** Instruct the developer to generate a new Service Account token and pass it in the `Authorization: Bearer` header.
+
+| **403 Forbidden**
+| **Cause:** They passed a valid token, but their specific "Tier" is not authorized to access this specific model. +
+**Fix:** Check their RBAC permissions. For example, a "Free Tier" user might be trying to route a request to an expensive "Enterprise" model.
+
+| **429 Too Many Requests**
+| **Cause:** The user has hit the Kuadrant rate limit defined for their tier. +
+**Fix:** They are requesting too many tokens per minute. They must either implement back-off logic in their application or request an upgrade to a higher throughput tier.
+|===
+
+== Next Steps: Expanding the Factory
+
+Distributed inference solves the problem of *routing live traffic*. However, to run a fully governed enterprise AI platform, you must implement the remaining pillars of the AI Factory. 
+
+Here is where your enablement journey goes next:
+
+=== 1. Quota Management & Hardware Profiles (Kueue)
+`llm-d` manages the traffic, but **Kueue** manages the budget. If you deploy a distributed service without Kueue, a single business unit could monopolize all the GPUs in your cluster.
+
+* **Next Step:** Take our companion course on **Hardware Profiles and Quotas** to learn how to configure ClusterQueues, enforce resource sharing, and ensure fair-play across your data science teams.
+
+=== 2. Governance & Safety (TrustyAI)
+A highly efficient model is a liability if it hallucinates or leaks sensitive data. 
+
+ * **Next Step:** Explore the **TrustyAI Guardrails** track to learn how to intercept inputs at the Gateway API level, preventing users from pasting PII into the helpdesk copilot, and validating model outputs before they reach the downstream application.
+
+=== 3. Compound AI Systems
+Now that you have a fast, reliable, and cheap inference endpoint, you can stop building monolithic chat applications.
+
+ * **Next Step:** Learn how to build modular applications using Routers, Skills, and Tool Calling (MCP) to break complex tasks down into deterministic, agentic workflows.
+
+'''
+
+Thank you for completing **Industrializing Inference: Maximizing GPU ROI with llm-d**.
+
+If you have a suggestion for improvement, found a typo, or want to request a new module, please https://github.com/RedHatQuickCourses/rhoai3-llmd-deploy/issues[submit an issue in the course repository, window=blank].

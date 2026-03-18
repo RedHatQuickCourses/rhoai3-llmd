@@ -1,36 +1,100 @@
-= Day 2: Observability & Proving ROI
-:navtitle: Day 2 — Observability
+= Cluster Bootstrapping
+:navtitle: Cluster Bootstrapping
 :toc: macro
-:description: Monitor llm-d workloads, Golden Signals, and Kueue alerts.
+
+// Antora metadata
+:page-role: Platform Administrator
+:description: Preparing a raw OpenShift cluster for llm-d by configuring operators, the DataScienceCluster, and the Gateway API.
 
 [.lead]
-*You cannot optimize what you cannot measure.*
+*Before you can build the factory line, you must pour the concrete.*
 
-Day 1 is deploying the model. Day 2 is where the bill and the metrics show up. In a shadow-AI setup, teams fly blind until users complain. In the AI factory, observability is built in: you can see exactly what your llm-d workloads consume and prove GPU ROI.
+If you hand a Platform Engineer a brand new OpenShift 4.20 cluster with the Red Hat OpenShift AI (RHOAI) Operator installed, they cannot immediately deploy an `LLMInferenceService`. 
 
-== Golden Signals of Distributed Inference
+Distributed inference is a deeply integrated architecture that requires cluster-level components to manage multi-pod scaling and advanced network intercepts. Before developers can use the GitOps fast-track scripts, a **Cluster Administrator** must perform this one-time bootstrapping phase.
 
-Beyond basic CPU/RAM, focus on these vLLM/llm-d signals:
+== 1. The Leader Worker Set (LWS) Operator
 
-* **KV cache usage:** If KV cache is consistently near full (e.g. >95%), workers may pause to swap; consider more replicas or a lower `--max-model-len`.
-* **TPOT** (`vllm_llmd_time_per_output_token_seconds`): Generation speed.
-* **TTFT** (`vllm_llmd_time_to_first_token_seconds`): Time until the model starts responding; the scheduler optimizes for this by routing to the least-burdened pods.
-* **GPU utilization** (`vllm_llmd_gpu_utilization_seconds`): Confirms GPUs are doing work, not idling.
+LLM inference often requires deploying a model across multiple GPUs, or even multiple physical nodes. Kubernetes natively uses `Deployments` or `StatefulSets`, but these are not optimized for distributed machine learning workloads where a "leader" pod must tightly coordinate with "worker" pods.
 
-== Workload metrics in the dashboard
+* **The Requirement:** You must install the **LeaderWorkerSet** Operator from OperatorHub.
+* **The "Why":** `llm-d` uses LWS under the hood to deploy the vLLM engine. It ensures that if one worker pod in a distributed inference group fails, the entire set is safely restarted to prevent split-brain execution and corrupted memory states.
 
-OpenShift AI 3.x provides workload metrics for your projects. In the dashboard, go to **Observe & monitor → Workload metrics**, select your project (e.g. `llmd-deploy-lab`), and review **Top resource-consuming distributed workloads**. You can confirm CPU, memory, and GPU usage and that load is distributed across replicas.
+== 2. Activating the Distributed Workloads Components
 
-== Kueue and alerts
+By default, a standard RHOAI installation might only enable basic Jupyter workspaces and pipelines. We must explicitly turn on the engines required for our AI Factory.
 
-llm-d handles *routing*; **Kueue** handles *who gets GPU quota*. When you hit hardware or quota limits, Kueue queues workloads and can fire alerts. In **Observe → Alerting**, watch for:
+* **The Requirement:** Edit the `DataScienceCluster` (DSC) custom resource.
+* **The "Why":** The KServe and distributed workload controllers do not consume cluster resources unless explicitly requested. 
 
-* **KueuePodDown:** Kueue pod not ready for a sustained period; no new workloads can be admitted.
-* **PendingWorkloadPods:** Pods pending for a long time; cluster may be out of GPUs or quota.
-* **ResourceReservationExceedsQuota:** Requests far exceed allowed quota; review manifests and quotas.
-* **LowClusterQueueResourceUsage:** Queue usage low for a long time; consider reallocating quota.
+Ensure your DSC YAML includes the following managed states:
+[source,yaml]
+----
+spec:
+  components:
+    kserve:
+      managementState: Managed
+    distributedworkloads:
+      managementState: Managed
+----
 
-Use the Runbook links in the alert details for recommended actions.
+== 3. The Gateway API (The Smart Front Door)
+
+This is the most critical networking concept in the `llm-d` architecture. 
+
+In traditional OpenShift deployments, you create a `Route` that points directly to a Kubernetes `Service`. The standard ingress controller simply passes the traffic through as quickly as possible. 
+
+**This does not work for intelligent routing.** If we want the Inference Scheduler (the "Brain") to score queue lengths and check KV cache affinity, we need a network component capable of intercepting the HTTP request, pausing it, asking the Scheduler for directions, and *then* forwarding the payload. 
+
+* **The Requirement:** We must explicitly deploy an Envoy-based Gateway API resource named `openshift-ai-inference` in the `openshift-ingress` namespace.
+* **The "Why":** The standard OpenShift router is too basic for this task. The Gateway API provides the advanced traffic interception required by the `llm-d` control plane.
+
+== 4. Securing the Gateway (Connectivity Link)
+
+In our upcoming deployment labs, we will deploy models with the annotation `security.opendatahub.io/enable-auth: 'false'` to focus purely on the routing mechanics. However, an enterprise AI Factory cannot leave endpoints exposed.
+
+ * **The Requirement:** If you intend to secure your endpoints and enable Models-as-a-Service (MaaS) API rate limiting, the cluster administrator must install the **Red Hat Connectivity Link** operator (which provides Kuadrant and Authorino).
+ * **The "Why":** `llm-d` does not handle its own authentication. If you flip `enable-auth` to `'true'`, the Gateway relies entirely on Kuadrant to validate JSON Web Tokens (JWTs) and enforce usage tiers. Without Connectivity Link installed, secured routing will fail.
+
+== Deploying the Gateway
+
+A cluster admin only needs to apply this configuration once per cluster:
+
+[source,yaml]
+----
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: openshift-ai-inference
+  namespace: openshift-ingress
+spec:
+  gatewayClassName: openshift-default-gateway-class
+  listeners:
+  - allowedRoutes:
+      namespaces:
+        from: All
+    name: http
+    port: 80
+    protocol: HTTP
+  - allowedRoutes:
+      namespaces:
+        from: All
+    name: https
+    port: 443
+    protocol: HTTPS
+----
+
+== The Gateway & Models-as-a-Service (MaaS)
+
+Taking the time to configure this Gateway unlocks one of the most powerful paradigms in enterprise AI: **Models-as-a-Service (MaaS)**.
+
+If your organization is hosting 50 different models (Granite, Llama, Qwen, etc.) for various business units, you do not want to manage 50 completely different ingress URLs, API tokens, and security policies. 
+
+Because we use the centralized `openshift-ai-inference` Gateway, it acts as the **single, unified API endpoint** for the entire enterprise. 
+
+* **How it scales:** As Platform Engineers deploy new `LLMInferenceService` resources in different namespaces, the KServe operator automatically creates `HTTPRoute` objects. These routes dynamically attach to our single Gateway. 
+* **The Value:** A developer simply points their application to `https://<gateway-url>/<namespace>/<model-name>/v1/chat/completions`. 
+* **The MaaS Advantage:** By funneling all AI traffic through this single Gateway, Platform Architects can easily implement centralized rate-limiting, API key authentication (via TrustyAI or 3scale), and accurate chargeback billing per business unit based on token consumption.
 
 ---
-*Next: Troubleshooting common issues.*
+*With the concrete poured and the Gateway API standing ready, the cluster is fully prepared. Next, we will step into the shoes of the Platform Engineer and execute the GitOps deployment lab.*

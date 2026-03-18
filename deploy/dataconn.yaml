@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: models-connection  # Renaming for clarity (was 'models' or 'storage-config')
+  namespace: model-deploy-lab
+  labels:
+    # 1. VISIBILITY: Tells the Dashboard "I belong to RHOAI"
+    opendatahub.io/dashboard: "true"
+    # 2. MANAGEMENT: Tells RHOAI "I am a managed Data Connection"
+    opendatahub.io/managed: "true"
+  annotations:
+    # 3. TYPE: Tells the Injector "I am an S3 credential"
+    opendatahub.io/connection-type: s3
+    openshift.io/display-name: Models Bucket
+type: Opaque
+stringData:
+  # The keys MUST match standard AWS SDK expectations
+  AWS_ACCESS_KEY_ID: minio
+  AWS_SECRET_ACCESS_KEY: minio123
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_S3_ENDPOINT: http://minio-service.model-deploy-lab:9000
+  AWS_S3_BUCKET: models

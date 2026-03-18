@@ -1,0 +1,32 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: granite3
+  namespace: model-deploy-lab
+  labels:
+    opendatahub.io/genai-asset: 'true'
+  annotations:
+    # "RawDeployment" mode bypasses Serverless to prevent cold starts
+    serving.kserve.io/deploymentMode: RawDeployment
+spec:
+  predictor:
+    serviceAccountName: fast-track-sa
+    model:
+      # The Format must match what the Runtime supports (vLLM)
+      modelFormat:
+        name: vLLM
+      # This name must match the runtime extracted in Step 2
+      runtime: vllm-cuda-runtime
+      # The path to your model in MinIO (s3://bucket/folder)
+      storageUri: s3://models/granite3
+      args:
+        - "--max-model-len=4096"        # Limits context to 4k to save VRAM
+        - "--gpu-memory-utilization=0.95" # Uses 95% of GPU (leaves 5% for overhead)
+      #  - "--distributed-executor-backend=mp" # Required for some multi-GPU setups
+      resources:
+        requests:
+          nvidia.com/gpu: "1"
+          memory: "8Gi"
+        limits:
+          nvidia.com/gpu: "1"
+          memory: "10Gi"

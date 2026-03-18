@@ -1,0 +1,74 @@
+# -------------------------------------------------------------------
+# 1. The Model (InferenceService)
+# -------------------------------------------------------------------
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: granite3
+  namespace: model-deploy-lab
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    security.opendatahub.io/enable-auth: 'false'
+    openshift.io/display-name: Granite 3.3 2B Instruct
+    
+    # Metrics & Hardware Profile
+    serving.kserve.io/enable-prometheus-scraping: 'false'
+    serving.kserve.io/enable-metric-aggregation: 'false'
+    opendatahub.io/hardware-profile-name: gpu-profile
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+    
+  labels:
+    opendatahub.io/dashboard: 'true'
+    opendatahub.io/genai-asset: 'true'
+    networking.kserve.io/visibility: exposed
+    app: granite3-predictor
+spec:
+  predictor:
+    # CORRECTED: Uses your lab's specific Service Account
+    serviceAccountName: fast-track-sa
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-cuda-runtime
+      storageUri: s3://models/granite3
+      resources:
+        requests:
+          cpu: '1'
+          memory: 12Gi
+          nvidia.com/gpu: '1'
+        limits:
+          cpu: '1'
+          memory: 12Gi
+          nvidia.com/gpu: '1'
+      args:
+        - "--port=8080"
+        - "--model=/mnt/models"
+        - "--served-model-name=granite3"
+        - "--dtype=half"
+        - "--max-model-len=4096"
+        - "--gpu-memory-utilization=0.95"
+
+---
+# -------------------------------------------------------------------
+# 2. The External Route
+# -------------------------------------------------------------------
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: granite3
+  namespace: model-deploy-lab
+  annotations:
+    haproxy.router.openshift.io/timeout: 30s
+  labels:
+    inferenceservice-name: granite3
+spec:
+  to:
+    kind: Service
+    name: granite3-predictor
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

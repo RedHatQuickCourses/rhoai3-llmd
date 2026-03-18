@@ -1,54 +1,167 @@
-= Troubleshooting & FAQs
-:navtitle: Troubleshooting
+= Lab: Deploying Automated Distributed Inference (llm-d)
+:navtitle: llm-d Deployment Lab
 :toc: macro
-:description: Common blockers and fixes for llm-d deployment on OpenShift AI 3.x.
+
+// Antora metadata
+:page-role: Platform Engineer
+:description: Deploying a scalable, distributed inference service using llm-d, the Gateway API, and GitOps.
 
 [.lead]
-*Use this playbook when deployment or routing does not behave as expected.*
+*Click-Ops does not scale. GitOps does.*
 
-== Pods stuck in Pending
+Now that the Cluster Administrator has poured the foundation and configured the `openshift-ai-inference` Gateway, it is time for you, the Platform Engineer, to build the factory line. 
 
-* **Symptom:** Pods (e.g. decode or vLLM workers) stay in `Pending`.
-* **Cause:** Node taints (e.g. `NVIDIA-L40S-PRIVATE`) without matching tolerations on the deployment.
-* **Fix:** Add the required toleration to the deployment or use a Hardware Profile that includes it. Example patch:
+In traditional serving, an ingress controller blindly round-robins traffic to backend pods. If Pod A is currently processing a massive 10,000-token document, and Pod B is completely idle, a standard router might still send the next chat request to Pod A, resulting in a queue timeout. 
+
+This is the exact problem `llm-d` solves. 
+
+In this lab, we will bypass the OpenShift AI UI entirely. We will use a declarative GitOps approach to deploy an `LLMInferenceService`. This custom resource automatically binds to the Gateway to act as a smart interceptor, querying the **Inference Scheduler** to route traffic to the least-burdened vLLM worker.
+
+[IMPORTANT]
+.Scope of this Lab
+====
+* **Focus:** Intelligent request routing, rapid deployment, and Gateway API integration.
+* **Out of Scope:** We will not configure advanced multi-node Wide Expert-Parallelism, Disaggregated Pre-fill/Decode, or TrustyAI guardrails here. Our goal is to establish a rock-solid, distributed foundational deployment that proves the routing value.
+====
+
+== Step 1: Fast Track the Dependencies
+
+Just like standard model deployment, we have packaged the "grunt work" into an automation script. This script will configure your namespace, deploy the MinIO object store ("The Vault"), create the necessary Data Connections, and stage the highly efficient `granite-3.3-2b-instruct` model.
+
+. **Open your OpenShift Terminal.**
+. **Clone the deployment repository:**
++
+[source,bash]
+----
+git clone https://github.com/RedHatQuickCourses/rhoai3-llmd-deploy.git
+cd rhoai3-llmd-deploy
+----
+
+. **Execute the Setup Pipeline:**
++
+[source,bash]
+----
+chmod u+x deploy/setup-llmd-env.sh
+./deploy/setup-llmd-env.sh
+----
+
+*Expected Output:* Wait for the script to output `✅ SUCCESS: Namespace, Vault, and Model Staged.`
+
+== Step 2: The Infrastructure-as-Code (The Workload)
+
+To deploy distributed inference, we do not use the standard `InferenceService` CRD. Instead, we use the `LLMInferenceService` CRD. 
+
+This single file tells the OpenShift AI operator to spin up a fleet of **vLLM workers** (the engine) and configure the **Inference Scheduler** (the traffic cop).
+
+Review the supplied `llmd-deployment.yaml` file in your directory:
+
+[source,yaml]
+----
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: granite-distributed
+  namespace: llmd-deploy-lab
+  annotations:
+    opendatahub.io/model-type: generative
+spec:
+  # 1. THE FLEET: We are requesting 2 separate vLLM worker pods to prove load balancing.
+  replicas: 2 
+  
+  # 2. THE VAULT: Pointing to our secure S3 storage connection
+  model:
+    uri: s3://models/granite3
+    name: granite-3.3-2b-instruct
+    
+  # 3. THE BRAIN: Configuring the Inference Scheduler logic
+  router:
+    scheduler:
+      template:
+        containers:
+          - name: main
+            args:
+              - '--pool-group'
+              - 'inference.networking.x-k8s.io'
+              - '--pool-name'
+              - '{{ .ObjectMeta.Name }}-inference-pool'
+              - '--zap-encoder'
+              - 'json'
+              
+  # 4. THE ENGINE: Tuning the vLLM workers for maximum throughput
+  template:
+    containers:
+      - name: main
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: "--max-model-len=16000 --gpu-memory-utilization=0.95"
+        resources:
+          limits:
+            nvidia.com/gpu: "1"  # 1 GPU per replica (Total 2 GPUs required)
+            memory: 12Gi
+----
+
+=== **Apply the Distributed Deployment:**
 
 [source,bash]
 ----
-oc patch deployment <deployment-name> -n <namespace> \
-  -p '{"spec":{"template":{"spec":{"tolerations":[{"key":"nvidia.com/gpu", "operator": "Equal", "value": "NVIDIA-L40S-PRIVATE", "effect": "NoSchedule"}]}}}}'
+oc apply -f ./deploy/llmd-deployment.yaml
 ----
 
-== MachineSets scaling down
+=== **Wait for Readiness:**
 
-* **Symptom:** GPU nodes or MachineSets scale down during setup.
-* **Cause:** In labs using spot or autoscaling, the cluster autoscaler may scale down when it sees idle periods.
-* **Fix:** Temporarily pin the MachineSet replica count (e.g. ensure at least 2 nodes for multi-replica or disaggregated labs):
+Because we are spinning up two separate GPUs and pulling weights from the vault into both, this will take a few minutes. You may briefly see a *Failed* status in the dashboard while images pull; this is normal.
 
 [source,bash]
 ----
-oc scale machineset <gpu-machineset-name> -n openshift-machine-api --replicas=2
+oc wait --for=condition=Ready llminferenceservice/granite-distributed -n llmd-deploy-lab --timeout=300s
 ----
 
-== Gateway address empty
+== Step 3: Verify the Topology (The Gateway)
 
-* **Symptom:** `oc get gateways` shows no address.
-* **Cause:** The underlying ingress/Load Balancer has not received an address from the cloud provider.
-* **Fix:** Check services in the ingress namespace (e.g. `oc get svc -n istio-system`) and verify cloud Load Balancer quota.
+In a traditional deployment, your OpenShift Route points directly to KServe. In an `llm-d` deployment, traffic **must** pass through the centralized Gateway API so the scheduler can intercept it.
 
-== 403 Forbidden on inference requests
-
-* **Symptom:** `curl` to the inference URL returns 403.
-* **Cause:** Auth (e.g. Authorino) is enabled and the request is missing or has an invalid `Authorization` header.
-* **Fix:** Create a token and pass it in the header:
+Let's verify the operator successfully wired our deployment to the Gateway we discussed in Phase 0:
 
 [source,bash]
 ----
-export TOKEN=$(oc create token default -n <namespace>)
-curl -k -H "Authorization: Bearer $TOKEN" -X POST "<inference-url>/v1/chat/completions" ...
+oc get httproute -n llmd-deploy-lab
 ----
 
-== Dashboard shows Failed while pods are running
+*Expected Output:* You should see an `HTTPRoute` named `granite-distributed` pointing explicitly to the `openshift-ai-inference` gateway.
 
-* **Symptom:** Model or service shows *Failed* in the UI but pods are Running.
-* **Cause:** UI sync delay while images pull or pods initialize.
-* **Fix:** Check pod logs (`oc logs -f <pod> -n <namespace>`). Status often flips to *Started* when the workload is ready.
+== Step 4: Test the Intelligent Router
+
+Now, we will hit the Gateway endpoint. 
+
+First, retrieve the external URL for the inference gateway:
+
+[source,bash]
+----
+export INFERENCE_URL=$(oc get gateway openshift-ai-inference -n openshift-ingress -o jsonpath='{.status.addresses[0].value}')
+echo "Targeting Gateway: http://$INFERENCE_URL/llmd-deploy-lab/granite-distributed/v1"
+----
+
+Next, submit a request. Notice that as a client, you do not need to know that there are two GPUs running behind the scenes. The Gateway and Scheduler handle the capacity load balancing automatically.
+
+[source,bash]
+----
+curl -k -X POST "http://$INFERENCE_URL/llmd-deploy-lab/granite-distributed/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "granite-3.3-2b-instruct",
+    "messages": [
+      {"role": "system", "content": "You are a highly efficient enterprise IT Copilot."},
+      {"role": "user", "content": "Explain the concept of intelligent load balancing in 50 words."}
+    ]
+  }'
+----
+
+---
+
+=== Mission Accomplished
+
+You have successfully deployed a resilient, multi-node inference service using a single YAML file and the Gateway API. 
+
+By utilizing GitOps and `llm-d`, you can now change `replicas: 2` to `replicas: 10`, commit the code, and instantly scale your AI Factory to handle enterprise-level traffic without dropping a single user request.
+
+*Up next: You have deployed the service, but how do you prove to the business that it is actually saving money? We will cover Observability and Day 2 Operations.*

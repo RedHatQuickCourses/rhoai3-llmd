@@ -1,4 +1,4 @@
-= Industrializing Inference: Maximizing GPU ROI with llm-d
+= Making RHOAI Distributed Inference Work For You
 :navtitle: Home
 :toc: macro
 

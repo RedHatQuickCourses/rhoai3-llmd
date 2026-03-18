@@ -1,61 +1,64 @@
-= Architecture: The Distributed Inference Stack
-:navtitle: Architecture Deep Dive
+= Capabilities & Features: The llm-d Toolkit
+:navtitle: Core Capabilities
 :toc: macro
-:description: Components, Gateway API integration, and request lifecycle for llm-d on OpenShift AI 3.x.
+
+// Antora metadata
+:page-role: Platform Architect
+:description: Exploring the five core capabilities of Distributed Inference (llm-d) and when to implement them.
 
 [.lead]
-*A monolith is a liability. To scale intelligence, decouple orchestration from execution.*
+*A factory requires different tools for different production lines. llm-d provides the complete toolkit.*
 
-Industrial-grade Generative AI needs a high-performance engine at the GPU level and an intelligent control plane across the cluster. Red Hat OpenShift AI 3.x combines **vLLM** (execution) with **llm-d** (orchestration) for a production-grade stack.
+In the previous module, we established *why* the business needs distributed inference: to drive down costs and guarantee performance. But how exactly does `llm-d` achieve this state-of-the-art performance on Kubernetes? 
 
-== Control Plane vs. Execution Plane
+`llm-d` is not a single feature; it is a comprehensive suite of optimizations designed to squeeze every ounce of value out of modern hardware accelerators. As a Platform Engineer, you must understand the available tools in this framework to design the right architecture for your specific Compound AI Systems.
 
-* **Control plane (llm-d):** Orchestrator and traffic cop. It knows the health, queue length, and cache status of every worker but does not run the model.
-* **Execution plane (vLLM):** High-throughput worker engine in the pods. It uses PagedAttention for GPU memory and runs the actual inference.
+Here are the five core capabilities of Red Hat OpenShift AI 3.3's distributed inference stack, and the strategic design decisions around when to use them.
 
-[NOTE]
-.The logistics analogy
-====
-* **llm-d** = air traffic control: optimizes routes and manages the fleet.
-* **vLLM** = the engine on each plane: maximum speed and efficiency per unit.
-====
+== 1. Intelligent Inference Scheduling (Cache-Aware Routing)
 
-== Component Breakdown
+This is the bread and butter of `llm-d`. Instead of a standard Kubernetes ingress controller blindly round-robining traffic, `llm-d` deploys vLLM behind a smart Envoy load balancer. 
 
-=== 1. Gateway API (smart router)
+* **How it works:** The scheduler actively monitors the cluster. It routes traffic based on utilization (who is least busy), fairness (preventing starvation), and **prefix-cache awareness**. If User A asks a question about a 10-page document, and User B asks a follow-up question about that *same* document, the scheduler knows which specific GPU already has that document loaded in its KV cache and routes User B there instantly.
+* **When to use it:** **Always.** This is the foundational capability that enables high-density sharing and turns a standard endpoint into a Model-as-a-Service (MaaS) offering. 
 
-The Gateway (e.g. in `openshift-ingress`) is the front door. It receives user requests and, instead of blindly forwarding, asks the Inference Scheduler where to send each request before forwarding the payload.
+== 2. Disaggregated Serving (Separating Read from Write)
 
-=== 2. Inference Scheduler (the brain)
+LLM inference consists of two distinct phases: **Prefill** (reading and processing the user's prompt) and **Decode** (generating the response token-by-token). Prefill is highly compute-intensive, while Decode is highly memory-bandwidth intensive.
 
-The scheduler (External Processing Plugin / EPP) keeps a real-time view of all vLLM worker pods. It runs filter-and-score logic: filter out unhealthy or overloaded pods, then score the rest by queue length (and cache affinity when applicable) to pick the best destination.
+* **How it works:** Disaggregated serving allows you to physically split these workloads. You assign specific GPUs purely to be "Prefill Servers" and others to be "Decode Servers." The Prefill server reads the massive prompt, calculates the KV cache, and transmits it over a high-speed network (like RoCE) to the Decode server to stream the response.
+* **When to use it:** In heavy Retrieval-Augmented Generation (RAG) workloads. If your users are uploading massive legal contracts (which cause huge prefill spikes that block decode generation), separating the phases ensures that heavy readers never interrupt fast writers, dramatically lowering Time-To-First-Token (TTFT).
 
-=== 3. KServe GenAI controller (factory builder)
 
-When you create an `LLMInferenceService`, this controller builds the Deployments, Services, and Route/Gateway objects that wire the Gateway to the Scheduler and the workers.
 
-=== 4. vLLM worker pods (the engine)
+== 3. Wide Expert-Parallelism (Multi-Node Scaling)
 
-Pods in your namespace pull model weights from your storage (e.g. S3/MinIO) and hold them in GPU memory. The Gateway forwards requests to the pod chosen by the Scheduler; the pod runs inference and streams the response back.
+Traditional tensor parallelism shards a model across multiple GPUs *within the same physical server*. But what happens when the model is bigger than the server itself?
 
-== Request Lifecycle
+* **How it works:** `llm-d` supports distributing massive Mixture-of-Experts (MoE) models across multiple physical nodes. It leverages technologies like NVSHMEM and high-speed network fabrics to allow GPUs on different physical machines to act as a single, unified accelerator brain.
+* **When to use it:** When you are deploying "Trillion Parameter" scale models (e.g., massive DeepSeek or Llama 405B variants) that simply exceed the VRAM of a single 8-GPU node, even with quantization. 
 
-1. **Request in:** Client sends an OpenAI-compatible request (e.g. `/v1/chat/completions`) to the Gateway.
-2. **Gateway intercepts:** Gateway receives the traffic and holds the payload.
-3. **Scheduler called:** Gateway sends request metadata to the Inference Scheduler: *Where should this go?*
-4. **Filter and score:** Scheduler filters out bad candidates, scores the rest by load (and cache affinity).
-5. **Instruction:** Scheduler tells the Gateway which worker pod should handle the request.
-6. **Execution:** Gateway forwards the payload to that pod; the pod generates the response and streams it back through the Gateway.
+== 4. Tiered KV Prefix Caching
 
-== Observability: Golden Signals
+The KV cache is the memory the model uses to "remember" the conversation. VRAM (GPU memory) is the fastest, but it is incredibly expensive and limited.
 
-Track these in Prometheus to prove value:
+* **How it works:** `llm-d` can intelligently offload KV cache entries from precious GPU VRAM down to cheaper CPU system RAM, or even further down to local NVMe SSDs or remote storage. When that context is needed again, it is pulled back up the tier.
+* **When to use it:** In high-concurrency environments where system prompts, standard operating procedures, or large document contexts are frequently reused. This allows you to serve massive effective context windows without constantly hitting "Out of Memory" (OOM) errors on the GPU.
 
-| Business goal | Metric | Description |
-|---------------|--------|-------------|
-| Responsiveness | `vllm_llmd_time_to_first_token_seconds` (TTFT) | Perceived speed; keep low and stable. |
-| Throughput | `vllm_llmd_time_per_output_token_seconds` (TPOT) | Generation speed. |
-| Efficiency | `vllm_llmd_gpu_utilization_seconds` | Confirms GPUs are active, not idling. |
+== 5. Workload Autoscaling
+
+Static sizing is dangerous. If you over-provision, you waste money. If you under-provision, your application crashes.
+
+* **How it works:** Integrating seamlessly with the Kubernetes Horizontal Pod Autoscaler (HPA) or customized variant autoscalers, `llm-d` can dynamically scale your vLLM worker pods up and down based on real-time metrics (like queue depth or KV cache utilization).
+* **When to use it:** Handling variable enterprise traffic patterns. You can scale your IT Helpdesk copilot down to zero at night, returning those valuable GPUs to the Kueue quota pool so the Data Science team can use them for overnight model training, and scale back up in the morning before business hours.
 
 ---
-*Next: Lab — deploy llm-d with GitOps.*
+[NOTE]
+.The Crawl, Walk, Run Approach
+====
+While features like Disaggregated Serving and Tiered Caching are incredibly powerful, they require precise network tuning (like RoCE) and deep architectural planning. 
+
+In this course, we will focus on establishing the foundation. Our upcoming hands-on labs will center entirely on **Intelligent Inference Scheduling** to ensure you can confidently deploy, route, and observe a distributed model before adding advanced complexity.
+====
+
+*Now that we know what tools are in the box, let's look at how they are wired together. Next, we will dive into the architecture and the lifecycle of a routed request.*
