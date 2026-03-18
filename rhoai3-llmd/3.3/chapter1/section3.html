@@ -3,10 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Day 2: Observability &amp; Proving ROI :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <title>Cluster Bootstrapping :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
     <link rel="prev" href="section2.html">
     <link rel="next" href="section4.html">
-    <meta name="description" content="Monitor llm-d workloads, Golden Signals, and Kueue alerts.">
     <meta name="generator" content="Antora 3.1.3">
     <link rel="stylesheet" href="../../../_/css/site.css">
     <script>var uiRootPath = '../../../_'</script>
@@ -48,19 +47,19 @@
   <li class="nav-item" data-depth="0">
 <ul class="nav-list">
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+    <a class="nav-link" href="section1.html">Capabilities &amp; Features</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+    <a class="nav-link" href="section2.html">Distributed Inference Stack</a>
   </li>
   <li class="nav-item is-current-page" data-depth="1">
-    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+    <a class="nav-link" href="section3.html">Cluster Bootstrapping</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section4.html">Troubleshooting</a>
+    <a class="nav-link" href="section4.html">Deploying Distributed Inference</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+    <a class="nav-link" href="section5.html">Tuning &amp; EPP Optimization</a>
   </li>
   <li class="nav-item" data-depth="1">
     <a class="nav-link" href="section6.html">Summary</a>
@@ -96,7 +95,7 @@
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
     <li><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></li>
-    <li><a href="section3.html">Day 2 — Observability</a></li>
+    <li><a href="section3.html">Cluster Bootstrapping</a></li>
   </ul>
 </nav>
 </div>
@@ -105,83 +104,177 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Day 2: Observability &amp; Proving ROI</h1>
+<h1 class="page">Cluster Bootstrapping</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph lead">
-<p><strong>You cannot optimize what you cannot measure.</strong></p>
+<p><strong>Before you can build the factory line, you must pour the concrete.</strong></p>
 </div>
 <div class="paragraph">
-<p>Day 1 is deploying the model. Day 2 is where the bill and the metrics show up. In a shadow-AI setup, teams fly blind until users complain. In the AI factory, observability is built in: you can see exactly what your llm-d workloads consume and prove GPU ROI.</p>
+<p>If you hand a Platform Engineer a brand new OpenShift 4.20 cluster with the Red Hat OpenShift AI (RHOAI) Operator installed, they cannot immediately deploy an <code>LLMInferenceService</code>.</p>
+</div>
+<div class="paragraph">
+<p>Distributed inference is a deeply integrated architecture that requires cluster-level components to manage multi-pod scaling and advanced network intercepts. Before developers can use the GitOps fast-track scripts, a <strong>Cluster Administrator</strong> must perform this one-time bootstrapping phase.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_golden_signals_of_distributed_inference"><a class="anchor" href="#_golden_signals_of_distributed_inference"></a>Golden Signals of Distributed Inference</h2>
+<h2 id="_1_the_leader_worker_set_lws_operator"><a class="anchor" href="#_1_the_leader_worker_set_lws_operator"></a>1. The Leader Worker Set (LWS) Operator</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Beyond basic CPU/RAM, focus on these vLLM/llm-d signals:</p>
+<p>LLM inference often requires deploying a model across multiple GPUs, or even multiple physical nodes. Kubernetes natively uses <code>Deployments</code> or <code>StatefulSets</code>, but these are not optimized for distributed machine learning workloads where a "leader" pod must tightly coordinate with "worker" pods.</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>KV cache usage:</strong> If KV cache is consistently near full (e.g. &gt;95%), workers may pause to swap; consider more replicas or a lower <code>--max-model-len</code>.</p>
+<p><strong>The Requirement:</strong> You must install the <strong>LeaderWorkerSet</strong> Operator from OperatorHub.</p>
 </li>
 <li>
-<p><strong>TPOT</strong> (<code>vllm_llmd_time_per_output_token_seconds</code>): Generation speed.</p>
-</li>
-<li>
-<p><strong>TTFT</strong> (<code>vllm_llmd_time_to_first_token_seconds</code>): Time until the model starts responding; the scheduler optimizes for this by routing to the least-burdened pods.</p>
-</li>
-<li>
-<p><strong>GPU utilization</strong> (<code>vllm_llmd_gpu_utilization_seconds</code>): Confirms GPUs are doing work, not idling.</p>
+<p><strong>The "Why":</strong> <code>llm-d</code> uses LWS under the hood to deploy the vLLM engine. It ensures that if one worker pod in a distributed inference group fails, the entire set is safely restarted to prevent split-brain execution and corrupted memory states.</p>
 </li>
 </ul>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_workload_metrics_in_the_dashboard"><a class="anchor" href="#_workload_metrics_in_the_dashboard"></a>Workload metrics in the dashboard</h2>
+<h2 id="_2_activating_the_distributed_workloads_components"><a class="anchor" href="#_2_activating_the_distributed_workloads_components"></a>2. Activating the Distributed Workloads Components</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>OpenShift AI 3.x provides workload metrics for your projects. In the dashboard, go to <strong>Observe &amp; monitor → Workload metrics</strong>, select your project (e.g. <code>llmd-deploy-lab</code>), and review <strong>Top resource-consuming distributed workloads</strong>. You can confirm CPU, memory, and GPU usage and that load is distributed across replicas.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_kueue_and_alerts"><a class="anchor" href="#_kueue_and_alerts"></a>Kueue and alerts</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>llm-d handles <strong>routing</strong>; <strong>Kueue</strong> handles <strong>who gets GPU quota</strong>. When you hit hardware or quota limits, Kueue queues workloads and can fire alerts. In <strong>Observe → Alerting</strong>, watch for:</p>
+<p>By default, a standard RHOAI installation might only enable basic Jupyter workspaces and pipelines. We must explicitly turn on the engines required for our AI Factory.</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>KueuePodDown:</strong> Kueue pod not ready for a sustained period; no new workloads can be admitted.</p>
+<p><strong>The Requirement:</strong> Edit the <code>DataScienceCluster</code> (DSC) custom resource.</p>
 </li>
 <li>
-<p><strong>PendingWorkloadPods:</strong> Pods pending for a long time; cluster may be out of GPUs or quota.</p>
-</li>
-<li>
-<p><strong>ResourceReservationExceedsQuota:</strong> Requests far exceed allowed quota; review manifests and quotas.</p>
-</li>
-<li>
-<p><strong>LowClusterQueueResourceUsage:</strong> Queue usage low for a long time; consider reallocating quota.</p>
+<p><strong>The "Why":</strong> The KServe and distributed workload controllers do not consume cluster resources unless explicitly requested.</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p>Use the Runbook links in the alert details for recommended actions.</p>
+<p>Ensure your DSC YAML includes the following managed states:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+  components:
+    kserve:
+      managementState: Managed
+    distributedworkloads:
+      managementState: Managed</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_3_the_gateway_api_the_smart_front_door"><a class="anchor" href="#_3_the_gateway_api_the_smart_front_door"></a>3. The Gateway API (The Smart Front Door)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This is the most critical networking concept in the <code>llm-d</code> architecture.</p>
+</div>
+<div class="paragraph">
+<p>In traditional OpenShift deployments, you create a <code>Route</code> that points directly to a Kubernetes <code>Service</code>. The standard ingress controller simply passes the traffic through as quickly as possible.</p>
+</div>
+<div class="paragraph">
+<p><strong>This does not work for intelligent routing.</strong> If we want the Inference Scheduler (the "Brain") to score queue lengths and check KV cache affinity, we need a network component capable of intercepting the HTTP request, pausing it, asking the Scheduler for directions, and <strong>then</strong> forwarding the payload.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>The Requirement:</strong> We must explicitly deploy an Envoy-based Gateway API resource named <code>openshift-ai-inference</code> in the <code>openshift-ingress</code> namespace.</p>
+</li>
+<li>
+<p><strong>The "Why":</strong> The standard OpenShift router is too basic for this task. The Gateway API provides the advanced traffic interception required by the <code>llm-d</code> control plane.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_4_securing_the_gateway_connectivity_link"><a class="anchor" href="#_4_securing_the_gateway_connectivity_link"></a>4. Securing the Gateway (Connectivity Link)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In our upcoming deployment labs, we will deploy models with the annotation <code>security.opendatahub.io/enable-auth: 'false'</code> to focus purely on the routing mechanics. However, an enterprise AI Factory cannot leave endpoints exposed.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>The Requirement:</strong> If you intend to secure your endpoints and enable Models-as-a-Service (MaaS) API rate limiting, the cluster administrator must install the <strong>Red Hat Connectivity Link</strong> operator (which provides Kuadrant and Authorino).</p>
+</li>
+<li>
+<p><strong>The "Why":</strong> <code>llm-d</code> does not handle its own authentication. If you flip <code>enable-auth</code> to <code>'true'</code>, the Gateway relies entirely on Kuadrant to validate JSON Web Tokens (JWTs) and enforce usage tiers. Without Connectivity Link installed, secured routing will fail.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_deploying_the_gateway"><a class="anchor" href="#_deploying_the_gateway"></a>Deploying the Gateway</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A cluster admin only needs to apply this configuration once per cluster:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: openshift-ai-inference
+  namespace: openshift-ingress
+spec:
+  gatewayClassName: openshift-default-gateway-class
+  listeners:
+  - allowedRoutes:
+      namespaces:
+        from: All
+    name: http
+    port: 80
+    protocol: HTTP
+  - allowedRoutes:
+      namespaces:
+        from: All
+    name: https
+    port: 443
+    protocol: HTTPS</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_gateway_models_as_a_service_maas"><a class="anchor" href="#_the_gateway_models_as_a_service_maas"></a>The Gateway &amp; Models-as-a-Service (MaaS)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Taking the time to configure this Gateway unlocks one of the most powerful paradigms in enterprise AI: <strong>Models-as-a-Service (MaaS)</strong>.</p>
+</div>
+<div class="paragraph">
+<p>If your organization is hosting 50 different models (Granite, Llama, Qwen, etc.) for various business units, you do not want to manage 50 completely different ingress URLs, API tokens, and security policies.</p>
+</div>
+<div class="paragraph">
+<p>Because we use the centralized <code>openshift-ai-inference</code> Gateway, it acts as the <strong>single, unified API endpoint</strong> for the entire enterprise.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>How it scales:</strong> As Platform Engineers deploy new <code>LLMInferenceService</code> resources in different namespaces, the KServe operator automatically creates <code>HTTPRoute</code> objects. These routes dynamically attach to our single Gateway.</p>
+</li>
+<li>
+<p><strong>The Value:</strong> A developer simply points their application to <code><a href="https://&lt;gateway-url&gt;/&lt;namespace&gt;/&lt;model-name&gt;/v1/chat/completions" class="bare">https://&lt;gateway-url&gt;/&lt;namespace&gt;/&lt;model-name&gt;/v1/chat/completions</a></code>.</p>
+</li>
+<li>
+<p><strong>The MaaS Advantage:</strong> By funneling all AI traffic through this single Gateway, Platform Architects can easily implement centralized rate-limiting, API key authentication (via TrustyAI or 3scale), and accurate chargeback billing per business unit based on token consumption.</p>
+</li>
+</ul>
 </div>
 <hr>
 <div class="paragraph">
-<p><strong>Next: Troubleshooting common issues.</strong></p>
+<p><strong>With the concrete poured and the Gateway API standing ready, the cluster is fully prepared. Next, we will step into the shoes of the Platform Engineer and execute the GitOps deployment lab.</strong></p>
 </div>
 </div>
 </div>
 <nav class="pagination">
-  <span class="prev"><a href="section2.html">Lab — Deploy llm-d</a></span>
-  <span class="next"><a href="section4.html">Troubleshooting</a></span>
+  <span class="prev"><a href="section2.html">Distributed Inference Stack</a></span>
+  <span class="next"><a href="section4.html">Deploying Distributed Inference</a></span>
 </nav>
 </article>
   </div>

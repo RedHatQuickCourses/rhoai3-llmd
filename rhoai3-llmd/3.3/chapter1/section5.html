@@ -3,10 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Simulator: Distributed Inference (Optional) :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <title>Lab: Production Tuning &amp; EPP Optimization :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
     <link rel="prev" href="section4.html">
     <link rel="next" href="section6.html">
-    <meta name="description" content="Guided simulation of llm-d workflow without a GPU cluster.">
     <meta name="generator" content="Antora 3.1.3">
     <link rel="stylesheet" href="../../../_/css/site.css">
     <script>var uiRootPath = '../../../_'</script>
@@ -48,19 +47,19 @@
   <li class="nav-item" data-depth="0">
 <ul class="nav-list">
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+    <a class="nav-link" href="section1.html">Capabilities &amp; Features</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+    <a class="nav-link" href="section2.html">Distributed Inference Stack</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+    <a class="nav-link" href="section3.html">Cluster Bootstrapping</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section4.html">Troubleshooting</a>
+    <a class="nav-link" href="section4.html">Deploying Distributed Inference</a>
   </li>
   <li class="nav-item is-current-page" data-depth="1">
-    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+    <a class="nav-link" href="section5.html">Tuning &amp; EPP Optimization</a>
   </li>
   <li class="nav-item" data-depth="1">
     <a class="nav-link" href="section6.html">Summary</a>
@@ -96,7 +95,7 @@
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
     <li><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></li>
-    <li><a href="section5.html">Simulator (Optional)</a></li>
+    <li><a href="section5.html">Tuning &amp; EPP Optimization</a></li>
   </ul>
 </nav>
 </div>
@@ -105,56 +104,248 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Simulator: Distributed Inference (Optional)</h1>
+<h1 class="page">Lab: Production Tuning &amp; EPP Optimization</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph lead">
-<p><strong>No cluster? Run a guided simulation of the full llm-d workflow.</strong></p>
+<p><strong>Implicit defaults are for the sandbox. Explicit configuration is for the factory floor.</strong></p>
 </div>
 <div class="paragraph">
-<p>Use this optional module if you do not have a GPU-enabled OpenShift cluster, or you want to validate the UI workflow before automating. The simulations walk through infrastructure checks, deployment, and validation.</p>
+<p>In the previous lab, you deployed a highly effective distributed inference service using a very short, simple YAML manifest. We relied heavily on the Red Hat OpenShift AI operator to "fill in the blanks"—injecting default health checks, standard networking ports, and default routing algorithms.</p>
+</div>
+<div class="paragraph">
+<p>While that is perfect for a "Day 1" proof-of-concept, a true enterprise AI Factory leaves nothing to chance. When IT Security, Finance, and Site Reliability Engineering (SRE) review your deployment, they demand strict health checks, custom routing rules, hardware constraints, and metrics pipelines.</p>
+</div>
+<div class="paragraph">
+<p>In this lab, we will upgrade our <code>LLMInferenceService</code> from a basic deployment to a <strong>Production-Grade Manifest</strong>.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_phase_1_infrastructure"><a class="anchor" href="#_phase_1_infrastructure"></a>Phase 1: Infrastructure</h2>
+<h2 id="_the_four_pillars_of_a_production_manifest"><a class="anchor" href="#_the_four_pillars_of_a_production_manifest"></a>The Four Pillars of a Production Manifest</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>Before we apply the new code, let&#8217;s break down the four major "upgrades" happening in a production-grade <code>llm-d</code> YAML.</p>
+</div>
 <div class="sect2">
-<h3 id="_access_and_hardware"><a class="anchor" href="#_access_and_hardware"></a>Access and hardware</h3>
+<h3 id="_1_tuning_the_brain_the_endpointpickerconfig_epp"><a class="anchor" href="#_1_tuning_the_brain_the_endpointpickerconfig_epp"></a>1. Tuning the Brain: The EndpointPickerConfig (EPP)</h3>
 <div class="paragraph">
-<p>Log in to the RHOAI console, review the dashboard, and inspect <strong>Settings → Hardware profiles</strong> to see how GPUs are allocated for inference. Then deploy a model from the Model Catalog.</p>
+<p>In our first lab, we turned the Inference Scheduler on and let it use its default logic. In production, you must explicitly program the scheduler&#8217;s <code>EndpointPickerConfig</code> algorithm to maximize your GPU ROI.</p>
+</div>
+<div class="paragraph">
+<p>Notice this block in our upcoming YAML:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">schedulingProfiles:
+- name: default
+  plugins:
+  - pluginRef: queue-scorer
+    weight: 2
+  - pluginRef: kv-cache-utilization-scorer
+    weight: 2
+  - pluginRef: prefix-cache-scorer
+    weight: 3</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You are giving the "Traffic Cop" a custom grading rubric. You are explicitly instructing it: <strong>"When deciding where to send a prompt, consider the queue length (weight: 2), but prioritize whether the pod already has the context cached in memory (prefix-cache-scorer weight: 3)."</strong> Maximizing cache hits prevents the GPU from re-calculating the same math, which drastically lowers your Time-to-First-Token (TTFT).</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_operator_health"><a class="anchor" href="#_operator_health"></a>Operator health</h3>
+<h3 id="_2_hardware_profiles_and_tolerations"><a class="anchor" href="#_2_hardware_profiles_and_tolerations"></a>2. Hardware Profiles and Tolerations</h3>
 <div class="paragraph">
-<p>From the OpenShift console, install the <strong>Leader Worker Set (LWS)</strong> Operator (used by llm-d for pod fleets). Confirm OpenShift 4.19+ (4.20 recommended) and that you can use the terminal/CLI.</p>
+<p>A standard cluster has many types of nodes (CPU, low-end GPUs, high-end GPUs). If your massive model lands on a CPU node, it will fail.</p>
+</div>
+<div class="paragraph">
+<p>In production, you explicitly wire the deployment into RHOAI&#8217;s hardware system using annotations (<code>opendatahub.io/hardware-profile-name: gpu-profile</code>). Furthermore, you define a Kubernetes <code>toleration</code> to ensure the pod is allowed to schedule on a node tainted specifically for NVIDIA GPUs:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">tolerations:
+  - key: "nvidia.com/gpu"
+    operator: "Exists"
+    effect: "NoSchedule"</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_3_explicit_resiliency_probes_timeouts"><a class="anchor" href="#_3_explicit_resiliency_probes_timeouts"></a>3. Explicit Resiliency: Probes &amp; Timeouts</h3>
+<div class="paragraph">
+<p>Large language models take time to load from the vault into GPU memory (VRAM). If you rely on standard Kubernetes health checks, Kubernetes might assume the pod is "dead" because it didn&#8217;t respond in 10 seconds, forcing an endless restart loop.</p>
+</div>
+<div class="paragraph">
+<p>By writing the <code>livenessProbe</code> out explicitly, you align the health checks with the reality of massive models:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+    scheme: HTTPS
+  initialDelaySeconds: 120 # Give the massive model 2 full minutes to load into VRAM</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_4_unlocking_observability"><a class="anchor" href="#_4_unlocking_observability"></a>4. Unlocking Observability</h3>
+<div class="paragraph">
+<p>To prove your GPU ROI to the business, you must expose the metrics. By explicitly defining the <code>--grpc-port</code>, <code>--grpc-health-port</code>, and the <code>--model-server-metrics-scheme</code>, you ensure that Prometheus can scrape the "Golden Signals" (like Cache Hit Rate and GPU Utilization) from the vLLM engines.</p>
 </div>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_phase_2_deploy_with_llm_d"><a class="anchor" href="#_phase_2_deploy_with_llm_d"></a>Phase 2: Deploy with llm-d</h2>
+<h2 id="_executing_the_production_upgrade"><a class="anchor" href="#_executing_the_production_upgrade"></a>Executing the Production Upgrade</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Configure the llm-d serving runtime, attach the Granite model, and select the distributed hardware profile. Then inspect the <strong>Topology</strong> view to see the Inference Scheduler (control plane) and vLLM pods (engine), and watch pod state during deployment.</p>
+<p>Now, we will apply these concepts. We have adapted the production template to point to the secure S3 vault (MinIO) we built in Lab 1.</p>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_phase_3_validation"><a class="anchor" href="#_phase_3_validation"></a>Phase 3: Validation</h2>
-<div class="sectionbody">
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="title">The Vault vs. Hugging Face</div>
 <div class="paragraph">
-<p>Launch a workbench (e.g. Jupyter), connect to the inference endpoint, and validate response and latency.</p>
+<p>Pulling models directly from the public internet (<code>hf://&#8230;&#8203;</code>) every time a pod restarts is a massive bottleneck and a security risk. By pointing our production manifest back to our <code>s3://</code> vault, we ensure rapid, air-gapped recovery if a pod fails.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Review the Production Manifest:</strong>
+Create a file named <code>production-llmd.yaml</code> (or locate it in your cloned <code>rhoai3-llmd-deploy</code> repository) with the following content:</p>
+</li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: granite-distributed-prod
+  namespace: llmd-deploy-lab
+  annotations:
+    opendatahub.io/hardware-profile-name: gpu-profile
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
+    opendatahub.io/model-type: generative
+    openshift.io/display-name: Granite Distributed Prod
+spec:
+  replicas: 2
+  model:
+    uri: s3://models/granite3
+    name: granite-3
+  router:
+    scheduler:
+      template:
+        containers:
+          - name: main
+            args:
+              - '--pool-group'
+              - 'inference.networking.x-k8s.io'
+              - '--pool-name'
+              - '{{ ChildName .ObjectMeta.Name `-inference-pool` }}'
+              - '--pool-namespace'
+              - '{{ .ObjectMeta.Namespace }}'
+              - '--zap-encoder'
+              - 'json'
+              - '--grpc-port'
+              - '9002'
+              - '--grpc-health-port'
+              - '9003'
+              - '--secure-serving'
+              - '--model-server-metrics-scheme'
+              - 'https'
+              - '--config-text'
+              - |
+                apiVersion: inference.networking.x-k8s.io/v1alpha1
+                kind: EndpointPickerConfig
+                plugins:
+                - type: single-profile-handler
+                - type: queue-scorer
+                - type: kv-cache-utilization-scorer
+                - type: prefix-cache-scorer
+                schedulingProfiles:
+                - name: default
+                  plugins:
+                  - pluginRef: queue-scorer
+                    weight: 2
+                  - pluginRef: kv-cache-utilization-scorer
+                    weight: 2
+                  - pluginRef: prefix-cache-scorer
+                    weight: 3
+  template:
+    tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+    containers:
+      - name: main
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: "--disable-uvicorn-access-log --max-model-len=16000 --gpu-memory-utilization=0.95"
+        resources:
+          limits:
+            cpu: '2'
+            memory: 12Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: '2'
+            memory: 12Gi
+            nvidia.com/gpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTPS
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 30
+          failureThreshold: 5</code></pre>
+</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Apply the Production Upgrade:</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f production-llmd.yaml</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p><strong>Validate the Rollout:</strong>
+Watch the pods as they initialize. Notice that the deployment strictly obeys the 120-second initial delay before marking the pods as ready.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc wait --for=condition=Ready llminferenceservice/granite-distributed-prod -n llmd-deploy-lab --timeout=400s</code></pre>
+</div>
+</div>
+</li>
+</ol>
 </div>
 <hr>
+<div class="sect2">
+<h3 id="_mission_accomplished"><a class="anchor" href="#_mission_accomplished"></a>Mission Accomplished</h3>
 <div class="paragraph">
-<p><strong>Next: Summary and next steps.</strong></p>
+<p>You have successfully transitioned from a "Day 1" proof-of-concept to a hardened, "Day 2" production deployment. Your AI Factory is now actively scoring requests to maximize cache hits, strictly adhering to hardware profiles, and fully instrumented for Prometheus scraping.</p>
+</div>
+<div class="paragraph">
+<p>This is the standard required for enterprise Models-as-a-Service (MaaS) operations.</p>
+</div>
 </div>
 </div>
 </div>
 <nav class="pagination">
-  <span class="prev"><a href="section4.html">Troubleshooting</a></span>
+  <span class="prev"><a href="section4.html">Deploying Distributed Inference</a></span>
   <span class="next"><a href="section6.html">Summary</a></span>
 </nav>
 </article>

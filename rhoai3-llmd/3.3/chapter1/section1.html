@@ -3,10 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Architecture: The Distributed Inference Stack :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <title>Capabilities &amp; Features: The llm-d Toolkit :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
     <link rel="prev" href="../index.html">
     <link rel="next" href="section2.html">
-    <meta name="description" content="Components, Gateway API integration, and request lifecycle for llm-d on OpenShift AI 3.x.">
     <meta name="generator" content="Antora 3.1.3">
     <link rel="stylesheet" href="../../../_/css/site.css">
     <script>var uiRootPath = '../../../_'</script>
@@ -48,19 +47,19 @@
   <li class="nav-item" data-depth="0">
 <ul class="nav-list">
   <li class="nav-item is-current-page" data-depth="1">
-    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+    <a class="nav-link" href="section1.html">Capabilities &amp; Features</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+    <a class="nav-link" href="section2.html">Distributed Inference Stack</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+    <a class="nav-link" href="section3.html">Cluster Bootstrapping</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section4.html">Troubleshooting</a>
+    <a class="nav-link" href="section4.html">Deploying Distributed Inference</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+    <a class="nav-link" href="section5.html">Tuning &amp; EPP Optimization</a>
   </li>
   <li class="nav-item" data-depth="1">
     <a class="nav-link" href="section6.html">Summary</a>
@@ -96,7 +95,7 @@
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
     <li><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></li>
-    <li><a href="section1.html">Architecture Deep Dive</a></li>
+    <li><a href="section1.html">Capabilities &amp; Features</a></li>
   </ul>
 </nav>
 </div>
@@ -105,30 +104,112 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Architecture: The Distributed Inference Stack</h1>
+<h1 class="page">Capabilities &amp; Features: The llm-d Toolkit</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph lead">
-<p><strong>A monolith is a liability. To scale intelligence, decouple orchestration from execution.</strong></p>
+<p><strong>A factory requires different tools for different production lines. llm-d provides the complete toolkit.</strong></p>
 </div>
 <div class="paragraph">
-<p>Industrial-grade Generative AI needs a high-performance engine at the GPU level and an intelligent control plane across the cluster. Red Hat OpenShift AI 3.x combines <strong>vLLM</strong> (execution) with <strong>llm-d</strong> (orchestration) for a production-grade stack.</p>
+<p>In the previous module, we established <strong>why</strong> the business needs distributed inference: to drive down costs and guarantee performance. But how exactly does <code>llm-d</code> achieve this state-of-the-art performance on Kubernetes?</p>
+</div>
+<div class="paragraph">
+<p><code>llm-d</code> is not a single feature; it is a comprehensive suite of optimizations designed to squeeze every ounce of value out of modern hardware accelerators. As a Platform Engineer, you must understand the available tools in this framework to design the right architecture for your specific Compound AI Systems.</p>
+</div>
+<div class="paragraph">
+<p>Here are the five core capabilities of Red Hat OpenShift AI 3.3&#8217;s distributed inference stack, and the strategic design decisions around when to use them.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_control_plane_vs_execution_plane"><a class="anchor" href="#_control_plane_vs_execution_plane"></a>Control Plane vs. Execution Plane</h2>
+<h2 id="_1_intelligent_inference_scheduling_cache_aware_routing"><a class="anchor" href="#_1_intelligent_inference_scheduling_cache_aware_routing"></a>1. Intelligent Inference Scheduling (Cache-Aware Routing)</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>This is the bread and butter of <code>llm-d</code>. Instead of a standard Kubernetes ingress controller blindly round-robining traffic, <code>llm-d</code> deploys vLLM behind a smart Envoy load balancer.</p>
+</div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Control plane (llm-d):</strong> Orchestrator and traffic cop. It knows the health, queue length, and cache status of every worker but does not run the model.</p>
+<p><strong>How it works:</strong> The scheduler actively monitors the cluster. It routes traffic based on utilization (who is least busy), fairness (preventing starvation), and <strong>prefix-cache awareness</strong>. If User A asks a question about a 10-page document, and User B asks a follow-up question about that <strong>same</strong> document, the scheduler knows which specific GPU already has that document loaded in its KV cache and routes User B there instantly.</p>
 </li>
 <li>
-<p><strong>Execution plane (vLLM):</strong> High-throughput worker engine in the pods. It uses PagedAttention for GPU memory and runs the actual inference.</p>
+<p><strong>When to use it:</strong> <strong>Always.</strong> This is the foundational capability that enables high-density sharing and turns a standard endpoint into a Model-as-a-Service (MaaS) offering.</p>
 </li>
 </ul>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_2_disaggregated_serving_separating_read_from_write"><a class="anchor" href="#_2_disaggregated_serving_separating_read_from_write"></a>2. Disaggregated Serving (Separating Read from Write)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>LLM inference consists of two distinct phases: <strong>Prefill</strong> (reading and processing the user&#8217;s prompt) and <strong>Decode</strong> (generating the response token-by-token). Prefill is highly compute-intensive, while Decode is highly memory-bandwidth intensive.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>How it works:</strong> Disaggregated serving allows you to physically split these workloads. You assign specific GPUs purely to be "Prefill Servers" and others to be "Decode Servers." The Prefill server reads the massive prompt, calculates the KV cache, and transmits it over a high-speed network (like RoCE) to the Decode server to stream the response.</p>
+</li>
+<li>
+<p><strong>When to use it:</strong> In heavy Retrieval-Augmented Generation (RAG) workloads. If your users are uploading massive legal contracts (which cause huge prefill spikes that block decode generation), separating the phases ensures that heavy readers never interrupt fast writers, dramatically lowering Time-To-First-Token (TTFT).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_3_wide_expert_parallelism_multi_node_scaling"><a class="anchor" href="#_3_wide_expert_parallelism_multi_node_scaling"></a>3. Wide Expert-Parallelism (Multi-Node Scaling)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Traditional tensor parallelism shards a model across multiple GPUs <strong>within the same physical server</strong>. But what happens when the model is bigger than the server itself?</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>How it works:</strong> <code>llm-d</code> supports distributing massive Mixture-of-Experts (MoE) models across multiple physical nodes. It leverages technologies like NVSHMEM and high-speed network fabrics to allow GPUs on different physical machines to act as a single, unified accelerator brain.</p>
+</li>
+<li>
+<p><strong>When to use it:</strong> When you are deploying "Trillion Parameter" scale models (e.g., massive DeepSeek or Llama 405B variants) that simply exceed the VRAM of a single 8-GPU node, even with quantization.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_4_tiered_kv_prefix_caching"><a class="anchor" href="#_4_tiered_kv_prefix_caching"></a>4. Tiered KV Prefix Caching</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The KV cache is the memory the model uses to "remember" the conversation. VRAM (GPU memory) is the fastest, but it is incredibly expensive and limited.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>How it works:</strong> <code>llm-d</code> can intelligently offload KV cache entries from precious GPU VRAM down to cheaper CPU system RAM, or even further down to local NVMe SSDs or remote storage. When that context is needed again, it is pulled back up the tier.</p>
+</li>
+<li>
+<p><strong>When to use it:</strong> In high-concurrency environments where system prompts, standard operating procedures, or large document contexts are frequently reused. This allows you to serve massive effective context windows without constantly hitting "Out of Memory" (OOM) errors on the GPU.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_5_workload_autoscaling"><a class="anchor" href="#_5_workload_autoscaling"></a>5. Workload Autoscaling</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Static sizing is dangerous. If you over-provision, you waste money. If you under-provision, your application crashes.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>How it works:</strong> Integrating seamlessly with the Kubernetes Horizontal Pod Autoscaler (HPA) or customized variant autoscalers, <code>llm-d</code> can dynamically scale your vLLM worker pods up and down based on real-time metrics (like queue depth or KV cache utilization).</p>
+</li>
+<li>
+<p><strong>When to use it:</strong> Handling variable enterprise traffic patterns. You can scale your IT Helpdesk copilot down to zero at night, returning those valuable GPUs to the Kueue quota pool so the Data Science team can use them for overnight model training, and scale back up in the morning before business hours.</p>
+</li>
+</ul>
+</div>
+<hr>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -136,101 +217,25 @@
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-<div class="title">The logistics analogy</div>
-<div class="ulist">
-<ul>
-<li>
-<p><strong>llm-d</strong> = air traffic control: optimizes routes and manages the fleet.</p>
-</li>
-<li>
-<p><strong>vLLM</strong> = the engine on each plane: maximum speed and efficiency per unit.</p>
-</li>
-</ul>
+<div class="title">The Crawl, Walk, Run Approach</div>
+<div class="paragraph">
+<p>While features like Disaggregated Serving and Tiered Caching are incredibly powerful, they require precise network tuning (like RoCE) and deep architectural planning.</p>
+</div>
+<div class="paragraph">
+<p>In this course, we will focus on establishing the foundation. Our upcoming hands-on labs will center entirely on <strong>Intelligent Inference Scheduling</strong> to ensure you can confidently deploy, route, and observe a distributed model before adding advanced complexity.</p>
 </div>
 </td>
 </tr>
 </table>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_component_breakdown"><a class="anchor" href="#_component_breakdown"></a>Component Breakdown</h2>
-<div class="sectionbody">
-<div class="sect2">
-<h3 id="_1_gateway_api_smart_router"><a class="anchor" href="#_1_gateway_api_smart_router"></a>1. Gateway API (smart router)</h3>
 <div class="paragraph">
-<p>The Gateway (e.g. in <code>openshift-ingress</code>) is the front door. It receives user requests and, instead of blindly forwarding, asks the Inference Scheduler where to send each request before forwarding the payload.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_2_inference_scheduler_the_brain"><a class="anchor" href="#_2_inference_scheduler_the_brain"></a>2. Inference Scheduler (the brain)</h3>
-<div class="paragraph">
-<p>The scheduler (External Processing Plugin / EPP) keeps a real-time view of all vLLM worker pods. It runs filter-and-score logic: filter out unhealthy or overloaded pods, then score the rest by queue length (and cache affinity when applicable) to pick the best destination.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_3_kserve_genai_controller_factory_builder"><a class="anchor" href="#_3_kserve_genai_controller_factory_builder"></a>3. KServe GenAI controller (factory builder)</h3>
-<div class="paragraph">
-<p>When you create an <code>LLMInferenceService</code>, this controller builds the Deployments, Services, and Route/Gateway objects that wire the Gateway to the Scheduler and the workers.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_4_vllm_worker_pods_the_engine"><a class="anchor" href="#_4_vllm_worker_pods_the_engine"></a>4. vLLM worker pods (the engine)</h3>
-<div class="paragraph">
-<p>Pods in your namespace pull model weights from your storage (e.g. S3/MinIO) and hold them in GPU memory. The Gateway forwards requests to the pod chosen by the Scheduler; the pod runs inference and streams the response back.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_request_lifecycle"><a class="anchor" href="#_request_lifecycle"></a>Request Lifecycle</h2>
-<div class="sectionbody">
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p><strong>Request in:</strong> Client sends an OpenAI-compatible request (e.g. <code>/v1/chat/completions</code>) to the Gateway.</p>
-</li>
-<li>
-<p><strong>Gateway intercepts:</strong> Gateway receives the traffic and holds the payload.</p>
-</li>
-<li>
-<p><strong>Scheduler called:</strong> Gateway sends request metadata to the Inference Scheduler: <strong>Where should this go?</strong></p>
-</li>
-<li>
-<p><strong>Filter and score:</strong> Scheduler filters out bad candidates, scores the rest by load (and cache affinity).</p>
-</li>
-<li>
-<p><strong>Instruction:</strong> Scheduler tells the Gateway which worker pod should handle the request.</p>
-</li>
-<li>
-<p><strong>Execution:</strong> Gateway forwards the payload to that pod; the pod generates the response and streams it back through the Gateway.</p>
-</li>
-</ol>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_observability_golden_signals"><a class="anchor" href="#_observability_golden_signals"></a>Observability: Golden Signals</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Track these in Prometheus to prove value:</p>
-</div>
-<div class="paragraph">
-<p>| Business goal | Metric | Description |
-|---------------|--------|-------------|
-| Responsiveness | <code>vllm_llmd_time_to_first_token_seconds</code> (TTFT) | Perceived speed; keep low and stable. |
-| Throughput | <code>vllm_llmd_time_per_output_token_seconds</code> (TPOT) | Generation speed. |
-| Efficiency | <code>vllm_llmd_gpu_utilization_seconds</code> | Confirms GPUs are active, not idling. |</p>
-</div>
-<hr>
-<div class="paragraph">
-<p><strong>Next: Lab — deploy llm-d with GitOps.</strong></p>
+<p><strong>Now that we know what tools are in the box, let&#8217;s look at how they are wired together. Next, we will dive into the architecture and the lifecycle of a routed request.</strong></p>
 </div>
 </div>
 </div>
 <nav class="pagination">
   <span class="prev"><a href="../index.html">Introduction &amp; Value</a></span>
-  <span class="next"><a href="section2.html">Lab — Deploy llm-d</a></span>
+  <span class="next"><a href="section2.html">Distributed Inference Stack</a></span>
 </nav>
 </article>
   </div>

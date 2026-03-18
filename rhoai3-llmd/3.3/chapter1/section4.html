@@ -3,10 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Troubleshooting &amp; FAQs :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <title>Lab: Deploying Automated Distributed Inference (llm-d) :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
     <link rel="prev" href="section3.html">
     <link rel="next" href="section5.html">
-    <meta name="description" content="Common blockers and fixes for llm-d deployment on OpenShift AI 3.x.">
     <meta name="generator" content="Antora 3.1.3">
     <link rel="stylesheet" href="../../../_/css/site.css">
     <script>var uiRootPath = '../../../_'</script>
@@ -48,19 +47,19 @@
   <li class="nav-item" data-depth="0">
 <ul class="nav-list">
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+    <a class="nav-link" href="section1.html">Capabilities &amp; Features</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+    <a class="nav-link" href="section2.html">Distributed Inference Stack</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+    <a class="nav-link" href="section3.html">Cluster Bootstrapping</a>
   </li>
   <li class="nav-item is-current-page" data-depth="1">
-    <a class="nav-link" href="section4.html">Troubleshooting</a>
+    <a class="nav-link" href="section4.html">Deploying Distributed Inference</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+    <a class="nav-link" href="section5.html">Tuning &amp; EPP Optimization</a>
   </li>
   <li class="nav-item" data-depth="1">
     <a class="nav-link" href="section6.html">Summary</a>
@@ -96,7 +95,7 @@
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
     <li><a href="../index.html">Industrializing Inference Maximizing GPU ROI with llm-d</a></li>
-    <li><a href="section4.html">Troubleshooting</a></li>
+    <li><a href="section4.html">Deploying Distributed Inference</a></li>
   </ul>
 </nav>
 </div>
@@ -105,124 +104,230 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Troubleshooting &amp; FAQs</h1>
+<h1 class="page">Lab: Deploying Automated Distributed Inference (llm-d)</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph lead">
-<p><strong>Use this playbook when deployment or routing does not behave as expected.</strong></p>
+<p><strong>Click-Ops does not scale. GitOps does.</strong></p>
+</div>
+<div class="paragraph">
+<p>Now that the Cluster Administrator has poured the foundation and configured the <code>openshift-ai-inference</code> Gateway, it is time for you, the Platform Engineer, to build the factory line.</p>
+</div>
+<div class="paragraph">
+<p>In traditional serving, an ingress controller blindly round-robins traffic to backend pods. If Pod A is currently processing a massive 10,000-token document, and Pod B is completely idle, a standard router might still send the next chat request to Pod A, resulting in a queue timeout.</p>
+</div>
+<div class="paragraph">
+<p>This is the exact problem <code>llm-d</code> solves.</p>
+</div>
+<div class="paragraph">
+<p>In this lab, we will bypass the OpenShift AI UI entirely. We will use a declarative GitOps approach to deploy an <code>LLMInferenceService</code>. This custom resource automatically binds to the Gateway to act as a smart interceptor, querying the <strong>Inference Scheduler</strong> to route traffic to the least-burdened vLLM worker.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<div class="title">Scope of this Lab</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Focus:</strong> Intelligent request routing, rapid deployment, and Gateway API integration.</p>
+</li>
+<li>
+<p><strong>Out of Scope:</strong> We will not configure advanced multi-node Wide Expert-Parallelism, Disaggregated Pre-fill/Decode, or TrustyAI guardrails here. Our goal is to establish a rock-solid, distributed foundational deployment that proves the routing value.</p>
+</li>
+</ul>
+</div>
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_pods_stuck_in_pending"><a class="anchor" href="#_pods_stuck_in_pending"></a>Pods stuck in Pending</h2>
+<h2 id="_step_1_fast_track_the_dependencies"><a class="anchor" href="#_step_1_fast_track_the_dependencies"></a>Step 1: Fast Track the Dependencies</h2>
 <div class="sectionbody">
-<div class="ulist">
-<ul>
+<div class="paragraph">
+<p>Just like standard model deployment, we have packaged the "grunt work" into an automation script. This script will configure your namespace, deploy the MinIO object store ("The Vault"), create the necessary Data Connections, and stage the highly efficient <code>granite-3.3-2b-instruct</code> model.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
 <li>
-<p><strong>Symptom:</strong> Pods (e.g. decode or vLLM workers) stay in <code>Pending</code>.</p>
+<p><strong>Open your OpenShift Terminal.</strong></p>
 </li>
 <li>
-<p><strong>Cause:</strong> Node taints (e.g. <code>NVIDIA-L40S-PRIVATE</code>) without matching tolerations on the deployment.</p>
+<p><strong>Clone the deployment repository:</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git clone https://github.com/RedHatQuickCourses/rhoai3-llmd-deploy.git
+cd rhoai3-llmd-deploy</code></pre>
+</div>
+</div>
 </li>
 <li>
-<p><strong>Fix:</strong> Add the required toleration to the deployment or use a Hardware Profile that includes it. Example patch:</p>
+<p><strong>Execute the Setup Pipeline:</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">chmod u+x deploy/setup-llmd-env.sh
+./deploy/setup-llmd-env.sh</code></pre>
+</div>
+</div>
 </li>
-</ul>
+</ol>
+</div>
+<div class="paragraph">
+<p><strong>Expected Output:</strong> Wait for the script to output <code>✅ SUCCESS: Namespace, Vault, and Model Staged.</code></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_2_the_infrastructure_as_code_the_workload"><a class="anchor" href="#_step_2_the_infrastructure_as_code_the_workload"></a>Step 2: The Infrastructure-as-Code (The Workload)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To deploy distributed inference, we do not use the standard <code>InferenceService</code> CRD. Instead, we use the <code>LLMInferenceService</code> CRD.</p>
+</div>
+<div class="paragraph">
+<p>This single file tells the OpenShift AI operator to spin up a fleet of <strong>vLLM workers</strong> (the engine) and configure the <strong>Inference Scheduler</strong> (the traffic cop).</p>
+</div>
+<div class="paragraph">
+<p>Review the supplied <code>llmd-deployment.yaml</code> file in your directory:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch deployment &lt;deployment-name&gt; -n &lt;namespace&gt; \
-  -p '{"spec":{"template":{"spec":{"tolerations":[{"key":"nvidia.com/gpu", "operator": "Equal", "value": "NVIDIA-L40S-PRIVATE", "effect": "NoSchedule"}]}}}}'</code></pre>
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: granite-distributed
+  namespace: llmd-deploy-lab
+  annotations:
+    opendatahub.io/model-type: generative
+spec:
+  # 1. THE FLEET: We are requesting 2 separate vLLM worker pods to prove load balancing.
+  replicas: 2
+
+  # 2. THE VAULT: Pointing to our secure S3 storage connection
+  model:
+    uri: s3://models/granite3
+    name: granite-3.3-2b-instruct
+
+  # 3. THE BRAIN: Configuring the Inference Scheduler logic
+  router:
+    scheduler:
+      template:
+        containers:
+          - name: main
+            args:
+              - '--pool-group'
+              - 'inference.networking.x-k8s.io'
+              - '--pool-name'
+              - '{{ .ObjectMeta.Name }}-inference-pool'
+              - '--zap-encoder'
+              - 'json'
+
+  # 4. THE ENGINE: Tuning the vLLM workers for maximum throughput
+  template:
+    containers:
+      - name: main
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: "--max-model-len=16000 --gpu-memory-utilization=0.95"
+        resources:
+          limits:
+            nvidia.com/gpu: "1"  # 1 GPU per replica (Total 2 GPUs required)
+            memory: 12Gi</code></pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_apply_the_distributed_deployment"><a class="anchor" href="#_apply_the_distributed_deployment"></a><strong>Apply the Distributed Deployment:</strong></h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f ./deploy/llmd-deployment.yaml</code></pre>
 </div>
 </div>
 </div>
-</div>
-<div class="sect1">
-<h2 id="_machinesets_scaling_down"><a class="anchor" href="#_machinesets_scaling_down"></a>MachineSets scaling down</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Symptom:</strong> GPU nodes or MachineSets scale down during setup.</p>
-</li>
-<li>
-<p><strong>Cause:</strong> In labs using spot or autoscaling, the cluster autoscaler may scale down when it sees idle periods.</p>
-</li>
-<li>
-<p><strong>Fix:</strong> Temporarily pin the MachineSet replica count (e.g. ensure at least 2 nodes for multi-replica or disaggregated labs):</p>
-</li>
-</ul>
+<div class="sect2">
+<h3 id="_wait_for_readiness"><a class="anchor" href="#_wait_for_readiness"></a><strong>Wait for Readiness:</strong></h3>
+<div class="paragraph">
+<p>Because we are spinning up two separate GPUs and pulling weights from the vault into both, this will take a few minutes. You may briefly see a <strong>Failed</strong> status in the dashboard while images pull; this is normal.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc scale machineset &lt;gpu-machineset-name&gt; -n openshift-machine-api --replicas=2</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc wait --for=condition=Ready llminferenceservice/granite-distributed -n llmd-deploy-lab --timeout=300s</code></pre>
 </div>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_gateway_address_empty"><a class="anchor" href="#_gateway_address_empty"></a>Gateway address empty</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Symptom:</strong> <code>oc get gateways</code> shows no address.</p>
-</li>
-<li>
-<p><strong>Cause:</strong> The underlying ingress/Load Balancer has not received an address from the cloud provider.</p>
-</li>
-<li>
-<p><strong>Fix:</strong> Check services in the ingress namespace (e.g. <code>oc get svc -n istio-system</code>) and verify cloud Load Balancer quota.</p>
-</li>
-</ul>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_403_forbidden_on_inference_requests"><a class="anchor" href="#_403_forbidden_on_inference_requests"></a>403 Forbidden on inference requests</h2>
+<h2 id="_step_3_verify_the_topology_the_gateway"><a class="anchor" href="#_step_3_verify_the_topology_the_gateway"></a>Step 3: Verify the Topology (The Gateway)</h2>
 <div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Symptom:</strong> <code>curl</code> to the inference URL returns 403.</p>
-</li>
-<li>
-<p><strong>Cause:</strong> Auth (e.g. Authorino) is enabled and the request is missing or has an invalid <code>Authorization</code> header.</p>
-</li>
-<li>
-<p><strong>Fix:</strong> Create a token and pass it in the header:</p>
-</li>
-</ul>
+<div class="paragraph">
+<p>In a traditional deployment, your OpenShift Route points directly to KServe. In an <code>llm-d</code> deployment, traffic <strong>must</strong> pass through the centralized Gateway API so the scheduler can intercept it.</p>
+</div>
+<div class="paragraph">
+<p>Let&#8217;s verify the operator successfully wired our deployment to the Gateway we discussed in Phase 0:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export TOKEN=$(oc create token default -n &lt;namespace&gt;)
-curl -k -H "Authorization: Bearer $TOKEN" -X POST "&lt;inference-url&gt;/v1/chat/completions" ...</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get httproute -n llmd-deploy-lab</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p><strong>Expected Output:</strong> You should see an <code>HTTPRoute</code> named <code>granite-distributed</code> pointing explicitly to the <code>openshift-ai-inference</code> gateway.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_dashboard_shows_failed_while_pods_are_running"><a class="anchor" href="#_dashboard_shows_failed_while_pods_are_running"></a>Dashboard shows Failed while pods are running</h2>
+<h2 id="_step_4_test_the_intelligent_router"><a class="anchor" href="#_step_4_test_the_intelligent_router"></a>Step 4: Test the Intelligent Router</h2>
 <div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Symptom:</strong> Model or service shows <strong>Failed</strong> in the UI but pods are Running.</p>
-</li>
-<li>
-<p><strong>Cause:</strong> UI sync delay while images pull or pods initialize.</p>
-</li>
-<li>
-<p><strong>Fix:</strong> Check pod logs (<code>oc logs -f &lt;pod&gt; -n &lt;namespace&gt;</code>). Status often flips to <strong>Started</strong> when the workload is ready.</p>
-</li>
-</ul>
+<div class="paragraph">
+<p>Now, we will hit the Gateway endpoint.</p>
+</div>
+<div class="paragraph">
+<p>First, retrieve the external URL for the inference gateway:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export INFERENCE_URL=$(oc get gateway openshift-ai-inference -n openshift-ingress -o jsonpath='{.status.addresses[0].value}')
+echo "Targeting Gateway: http://$INFERENCE_URL/llmd-deploy-lab/granite-distributed/v1"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Next, submit a request. Notice that as a client, you do not need to know that there are two GPUs running behind the scenes. The Gateway and Scheduler handle the capacity load balancing automatically.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -k -X POST "http://$INFERENCE_URL/llmd-deploy-lab/granite-distributed/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "granite-3.3-2b-instruct",
+    "messages": [
+      {"role": "system", "content": "You are a highly efficient enterprise IT Copilot."},
+      {"role": "user", "content": "Explain the concept of intelligent load balancing in 50 words."}
+    ]
+  }'</code></pre>
+</div>
+</div>
+<hr>
+<div class="sect2">
+<h3 id="_mission_accomplished"><a class="anchor" href="#_mission_accomplished"></a>Mission Accomplished</h3>
+<div class="paragraph">
+<p>You have successfully deployed a resilient, multi-node inference service using a single YAML file and the Gateway API.</p>
+</div>
+<div class="paragraph">
+<p>By utilizing GitOps and <code>llm-d</code>, you can now change <code>replicas: 2</code> to <code>replicas: 10</code>, commit the code, and instantly scale your AI Factory to handle enterprise-level traffic without dropping a single user request.</p>
+</div>
+<div class="paragraph">
+<p><strong>Up next: You have deployed the service, but how do you prove to the business that it is actually saving money? We will cover Observability and Day 2 Operations.</strong></p>
+</div>
 </div>
 </div>
 </div>
 <nav class="pagination">
-  <span class="prev"><a href="section3.html">Day 2 — Observability</a></span>
-  <span class="next"><a href="section5.html">Simulator (Optional)</a></span>
+  <span class="prev"><a href="section3.html">Cluster Bootstrapping</a></span>
+  <span class="next"><a href="section5.html">Tuning &amp; EPP Optimization</a></span>
 </nav>
 </article>
   </div>

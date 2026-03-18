@@ -3,9 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Summary &amp; Next Steps :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <title>Maximizing ROI &amp; Next Steps :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
     <link rel="prev" href="section5.html">
-    <meta name="description" content="Outcomes, caveats, and next steps for llm-d on OpenShift AI 3.x.">
     <meta name="generator" content="Antora 3.1.3">
     <link rel="stylesheet" href="../../../_/css/site.css">
     <script>var uiRootPath = '../../../_'</script>
@@ -47,19 +46,19 @@
   <li class="nav-item" data-depth="0">
 <ul class="nav-list">
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section1.html">Architecture Deep Dive</a>
+    <a class="nav-link" href="section1.html">Capabilities &amp; Features</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section2.html">Lab — Deploy llm-d</a>
+    <a class="nav-link" href="section2.html">Distributed Inference Stack</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section3.html">Day 2 — Observability</a>
+    <a class="nav-link" href="section3.html">Cluster Bootstrapping</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section4.html">Troubleshooting</a>
+    <a class="nav-link" href="section4.html">Deploying Distributed Inference</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="section5.html">Simulator (Optional)</a>
+    <a class="nav-link" href="section5.html">Tuning &amp; EPP Optimization</a>
   </li>
   <li class="nav-item is-current-page" data-depth="1">
     <a class="nav-link" href="section6.html">Summary</a>
@@ -104,69 +103,184 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Summary &amp; Next Steps</h1>
+<h1 class="page">Maximizing ROI &amp; Next Steps</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph lead">
-<p><strong>You are no longer just "running a model." You are managing a distributed inference system.</strong></p>
+<p><strong>You have built the engine. Now it is time to scale the fleet.</strong></p>
 </div>
 <div class="paragraph">
-<p>By deploying <strong>Distributed Inference with llm-d</strong> on Red Hat OpenShift AI 3.x, you have moved from static, single-pod serving to a platform that delivers:</p>
+<p>Congratulations. You have successfully completed the architectural transition from ad-hoc, "Shadow AI" experiments to a repeatable, economically viable <strong>Intelligence Factory</strong>.</p>
 </div>
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Optimized TCO:</strong> Intelligent scheduling and cache-aware routing let you pack more models and users onto the same hardware and lower cost-per-token.</p>
-</li>
-<li>
-<p><strong>Predictable performance:</strong> Separation of prefill and decode (in advanced topologies) and load-aware routing keep latency consistent under load.</p>
-</li>
-<li>
-<p><strong>Sovereign control:</strong> Data and prompts stay inside your OpenShift perimeter.</p>
-</li>
-</ul>
+<div class="paragraph">
+<p>By adopting <strong>Distributed Inference with llm-d</strong> on Red Hat OpenShift AI 3.3, you have moved beyond "best-effort" model serving. You have implemented a split-plane architecture that utilizes the OpenShift Gateway to intercept traffic and an Inference Scheduler to dynamically route workloads to the most efficient vLLM engine.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_implementation_notes_openshift_ai_3_x"><a class="anchor" href="#_implementation_notes_openshift_ai_3_x"></a>Implementation notes (OpenShift AI 3.x)</h2>
+<h2 id="_mission_accomplished_the_outcomes"><a class="anchor" href="#_mission_accomplished_the_outcomes"></a>Mission Accomplished: The Outcomes</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>When you present this architecture back to your business stakeholders, you can confidently demonstrate three non-negotiable outcomes:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top"><strong>Outcome</strong></th>
+<th class="tableblock halign-left valign-top"><strong>Technical Driver</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>1. Maximized ROI</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Stop Paying for Idle GPUs.</strong><br>
+By moving to a shared, load-balanced Inference pool, you can safely over-provision users to the same hardware footprint. The intelligent scheduler ensures no single GPU is overwhelmed, directly lowering your cost-per-token.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>2. Guaranteed Performance</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cache-Aware Routing.</strong><br>
+By grading worker pods on their KV cache affinity (the <code>prefix-cache-scorer</code>), you ensure that users interacting with the same documents or system prompts are routed to the GPU that already has that context loaded in memory, drastically reducing Time-to-First-Token (TTFT).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>3. Sovereign Control</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Total Data Ownership.</strong><br>
+Proprietary data, RAG contexts, and user prompts are processed entirely within your secure OpenShift perimeter and air-gapped vaults—never sent to a third-party API.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_implementationcheck"><a class="anchor" href="#_implementationcheck"></a>ImplementationCheck</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As you move from these lab environments to your actual production clusters, keep these specific deployment realities in mind:</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<div class="title">Critical Caveats for RHOAI 3.3</div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Status in the UI:</strong> Models may briefly show <strong>Failed</strong> in the dashboard while initializing. Check pod logs; status often flips to <strong>Started</strong> when ready.</p>
+<p><strong>The "Failed" Status False Positive:</strong> When deploying massive models via the <code>LLMInferenceService</code>, the OpenShift AI dashboard may initially show a <strong>Failed</strong> status. This is often a UI timeout while the multi-gigabyte weights are being pulled into the pod&#8217;s memory. Always check the pod events; the status will flip to <strong>Started</strong> when the vLLM engine finishes loading.</p>
 </li>
 <li>
-<p><strong>Topologies:</strong> Multi-node on certain hardware (e.g. GB200) may not be supported. Wide Expert-Parallelism (multi-node) may be in Developer Preview; confirm in product documentation.</p>
+<p><strong>The Network Fabric Limit:</strong> Standard TCP/IP networking is sufficient for intelligent scheduling. However, if you plan to implement advanced features like <strong>Disaggregated Serving</strong> or <strong>Wide Expert-Parallelism</strong>, you <strong>must</strong> work with your network engineers to implement RoCE (RDMA over Converged Ethernet). Standard networks will bottleneck GPU-to-GPU communications.</p>
 </li>
 </ul>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_troubleshooting_maas_access"><a class="anchor" href="#_troubleshooting_maas_access"></a>Troubleshooting MaaS Access</h3>
+<div class="paragraph">
+<p>When you transition to a Models-as-a-Service architecture, you will inevitably receive helpdesk tickets from application developers claiming "the model is down." Often, the model is perfectly healthy, but the Gateway API&#8217;s security layer (Kuadrant) is blocking their request.</p>
+</div>
+<div class="paragraph">
+<p>When a developer reports an issue, ask them for the HTTP status code they received. Use this cheat sheet to instantly diagnose the block:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top"><strong>HTTP Error Code</strong></th>
+<th class="tableblock halign-left valign-top"><strong>The Cause &amp; The Fix</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>401 Unauthorized</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cause:</strong> The developer did not pass a valid MaaS token, or the token is expired.<br>
+<strong>Fix:</strong> Instruct the developer to generate a new Service Account token and pass it in the <code>Authorization: Bearer</code> header.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>403 Forbidden</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cause:</strong> They passed a valid token, but their specific "Tier" is not authorized to access this specific model.<br>
+<strong>Fix:</strong> Check their RBAC permissions. For example, a "Free Tier" user might be trying to route a request to an expensive "Enterprise" model.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>429 Too Many Requests</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cause:</strong> The user has hit the Kuadrant rate limit defined for their tier.<br>
+<strong>Fix:</strong> They are requesting too many tokens per minute. They must either implement back-off logic in their application or request an upgrade to a higher throughput tier.</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_next_steps"><a class="anchor" href="#_next_steps"></a>Next steps</h2>
+<h2 id="_next_steps_expanding_the_factory"><a class="anchor" href="#_next_steps_expanding_the_factory"></a>Next Steps: Expanding the Factory</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>Distributed inference solves the problem of <strong>routing live traffic</strong>. However, to run a fully governed enterprise AI platform, you must implement the remaining pillars of the AI Factory.</p>
+</div>
+<div class="paragraph">
+<p>Here is where your enablement journey goes next:</p>
+</div>
+<div class="sect2">
+<h3 id="_1_quota_management_hardware_profiles_kueue"><a class="anchor" href="#_1_quota_management_hardware_profiles_kueue"></a>1. Quota Management &amp; Hardware Profiles (Kueue)</h3>
+<div class="paragraph">
+<p><code>llm-d</code> manages the traffic, but <strong>Kueue</strong> manages the budget. If you deploy a distributed service without Kueue, a single business unit could monopolize all the GPUs in your cluster.</p>
+</div>
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Scale:</strong> Increase <code>replicas</code> in your <code>LLMInferenceService</code> and re-apply; the Gateway and Scheduler will spread traffic.</p>
+<p><strong>Next Step:</strong> Take our companion course on <strong>Hardware Profiles and Quotas</strong> to learn how to configure ClusterQueues, enforce resource sharing, and ensure fair-play across your data science teams.</p>
 </li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_2_governance_safety_trustyai"><a class="anchor" href="#_2_governance_safety_trustyai"></a>2. Governance &amp; Safety (TrustyAI)</h3>
+<div class="paragraph">
+<p>A highly efficient model is a liability if it hallucinates or leaks sensitive data.</p>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p><strong>MaaS:</strong> llm-d is the recommended runtime for Models-as-a-Service (MaaS) in OpenShift AI 3.x; combine with Gateway API and Kuadrant for API-first, governed endpoints.</p>
+<p><strong>Next Step:</strong> Explore the <strong>TrustyAI Guardrails</strong> track to learn how to intercept inputs at the Gateway API level, preventing users from pasting PII into the helpdesk copilot, and validating model outputs before they reach the downstream application.</p>
 </li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_3_compound_ai_systems"><a class="anchor" href="#_3_compound_ai_systems"></a>3. Compound AI Systems</h3>
+<div class="paragraph">
+<p>Now that you have a fast, reliable, and cheap inference endpoint, you can stop building monolithic chat applications.</p>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p><strong>Governance:</strong> Add TrustyAI and guardrails for safety and compliance once the inference path is stable.</p>
+<p><strong>Next Step:</strong> Learn how to build modular applications using Routers, Skills, and Tool Calling (MCP) to break complex tasks down into deterministic, agentic workflows.</p>
 </li>
 </ul>
 </div>
 <hr>
 <div class="paragraph">
-<p><strong>End of course. For quick deployment without the full narrative, use the README Quick Start.</strong></p>
+<p>Thank you for completing <strong>Industrializing Inference: Maximizing GPU ROI with llm-d</strong>.</p>
+</div>
+<div class="paragraph">
+<p>If you have a suggestion for improvement, found a typo, or want to request a new module, please <a href="https://github.com/RedHatQuickCourses/rhoai3-llmd-deploy/issues" target="blank">submit an issue in the course repository</a>.</p>
+</div>
 </div>
 </div>
 </div>
 <nav class="pagination">
-  <span class="prev"><a href="section5.html">Simulator (Optional)</a></span>
+  <span class="prev"><a href="section5.html">Tuning &amp; EPP Optimization</a></span>
 </nav>
 </article>
   </div>

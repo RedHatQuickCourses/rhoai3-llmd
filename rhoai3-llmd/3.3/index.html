@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Industrializing Inference: Maximizing GPU ROI with llm-d :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
+    <title>Making RHOAI Distributed Inference Work For You :: Industrializing Inference Maximizing GPU ROI with llm-d</title>
     <link rel="next" href="chapter1/section1.html">
     <meta name="generator" content="Antora 3.1.3">
     <link rel="stylesheet" href="../../_/css/site.css">
@@ -46,19 +46,19 @@
   <li class="nav-item" data-depth="0">
 <ul class="nav-list">
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="chapter1/section1.html">Architecture Deep Dive</a>
+    <a class="nav-link" href="chapter1/section1.html">Capabilities &amp; Features</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="chapter1/section2.html">Lab — Deploy llm-d</a>
+    <a class="nav-link" href="chapter1/section2.html">Distributed Inference Stack</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="chapter1/section3.html">Day 2 — Observability</a>
+    <a class="nav-link" href="chapter1/section3.html">Cluster Bootstrapping</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="chapter1/section4.html">Troubleshooting</a>
+    <a class="nav-link" href="chapter1/section4.html">Deploying Distributed Inference</a>
   </li>
   <li class="nav-item" data-depth="1">
-    <a class="nav-link" href="chapter1/section5.html">Simulator (Optional)</a>
+    <a class="nav-link" href="chapter1/section5.html">Tuning &amp; EPP Optimization</a>
   </li>
   <li class="nav-item" data-depth="1">
     <a class="nav-link" href="chapter1/section6.html">Summary</a>
@@ -103,96 +103,153 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Industrializing Inference: Maximizing GPU ROI with llm-d</h1>
-<h1 id="_introduction_business_value" class="sect0"><a class="anchor" href="#_introduction_business_value"></a>Introduction &amp; Business Value</h1>
+<h1 class="page">Making RHOAI Distributed Inference Work For You</h1>
+<h1 id="_industrializing_inference_maximizing_gpu_roi_with_llm_d" class="sect0"><a class="anchor" href="#_industrializing_inference_maximizing_gpu_roi_with_llm_d"></a>Industrializing Inference: Maximizing GPU ROI with llm-d</h1>
 <div class="paragraph lead">
 <p><strong>Stop treating GPUs like personal laptops. Start running them like a high-throughput factory.</strong></p>
 </div>
 <div class="paragraph">
-<p>In the experimental phase of Generative AI, organizations tolerate massive inefficiencies. A team might allocate an 80GB NVIDIA H100 to serve a single monolithic chatbot, so the GPU sits idle for hours while still burning budget. When traffic spikes, that single pod becomes a bottleneck: requests queue, latencies spike, and the user experience degrades.</p>
+<p>In the experimental phase of Generative AI, organizations tolerate massive inefficiencies. A data science team might allocate an 80GB NVIDIA H100 to serve a single monolithic chatbot, resulting in a GPU that sits completely idle for 14 hours a day while still burning through the IT budget.</p>
 </div>
 <div class="paragraph">
-<p>This is the traditional <strong>static serving</strong> problem. To build a true <strong>AI factory</strong>, you must move beyond static serving and implement <strong>Distributed Inference</strong>.</p>
+<p>The reality is that 95% of AI projects fail to deliver ROI by remaining manual, ad-hoc, and disconnected from enterprise-ready capabilities. When traffic does spike, a single monolithic pod becomes a bottleneck, causing requests to queue, latencies to skyrocket, and the user experience to degrade.</p>
+</div>
+<div class="paragraph">
+<p>This is the traditional "Static Serving" problem. It treats inference as a static web server rather than a dynamic, distributed compute challenge. To build a true <strong>Scalable AI Solution</strong>, an operational framework that industrializes the production of intelligence, you must move beyond static serving and implement distributed inference.</p>
 </div>
 <div class="sect1">
 <h2 id="_the_solution_distributed_inference_llm_d"><a class="anchor" href="#_the_solution_distributed_inference_llm_d"></a>The Solution: Distributed Inference (llm-d)</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>In Red Hat OpenShift AI 3.x, the <strong>llm-d</strong> (Large Language Model Distributed) framework turns monolithic deployments into intelligent, distributed microservices. It acts as the traffic cop for your compute: sitting behind the OpenShift Gateway API, it intercepts requests and routes them to the right vLLM worker pods. By decoupling orchestration (how traffic is routed) from execution (how the model runs), llm-d lets you treat your GPU cluster as one efficient engine.</p>
+<p>In Red Hat OpenShift AI (RHOAI) 3.3+, the <code>llm-d</code> (Large Language Model Distributed) framework transforms monolithic deployments into intelligent, distributed microservices. It is positioned as the industry&#8217;s first Kubernetes-native inference scheduler.</p>
+</div>
+<div class="paragraph">
+<p>It acts as the "traffic cop" for compute, intelligently routing requests to maximize GPU usage. By decoupling the orchestration (how traffic is routed) from the execution (how the model processes math), <code>llm-d</code> solves the "cost of inference" problem and turns a cost center into a streamlined, efficient Enterprise Service.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="_three_pillars_of_business_value"><a class="anchor" href="#_three_pillars_of_business_value"></a>Three Pillars of Business Value</h2>
 <div class="sectionbody">
-<div class="sect2">
-<h3 id="_1_optimized_tco_stop_paying_for_idle_gpus"><a class="anchor" href="#_1_optimized_tco_stop_paying_for_idle_gpus"></a>1. Optimized TCO — Stop Paying for Idle GPUs</h3>
 <div class="paragraph">
-<p>Static deployments lock expensive hardware to single applications. llm-d enables safe, high-density resource sharing. The Inference Scheduler monitors queue length and active workers and routes traffic to the least-burdened nodes, so you pack more users and models onto the same hardware and lower cost-per-token.</p>
+<p>Platform Engineers must justify the transition to distributed infrastructure. By adopting Distributed Inference with <code>llm-d</code>, you move beyond "best effort" serving to a platform that delivers three non-negotiable outcomes:</p>
+</div>
+<div class="sect2">
+<h3 id="_1_maximized_roi_stop_paying_for_idle_gpus"><a class="anchor" href="#_1_maximized_roi_stop_paying_for_idle_gpus"></a>1. Maximized ROI (Stop Paying for Idle GPUs)</h3>
+<div class="paragraph">
+<p>Static deployments lock expensive hardware to single applications.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>The Win:</strong> Intelligent Scheduling and KV Cache Management allow you to pack more active models and users onto the same hardware.</p>
+</li>
+<li>
+<p><strong>The ROI:</strong> You directly lower the cost-per-token  and maximize the saturation of your purchased GPU footprint.</p>
+</li>
+</ul>
 </div>
 </div>
 <div class="sect2">
 <h3 id="_2_guaranteed_performance_reduced_latency"><a class="anchor" href="#_2_guaranteed_performance_reduced_latency"></a>2. Guaranteed Performance &amp; Reduced Latency</h3>
 <div class="paragraph">
-<p>In a monolithic setup, a heavy batch job can block a fast chatbot query. With vLLM and continuous batching at the worker level, plus llm-d load balancing, requests are processed concurrently. Users get consistent, low Time-To-First-Token (TTFT) and generation speed (TPOT).</p>
+<p>In a monolithic setup, a heavy batch-processing job will completely block a fast chatbot query.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>The Win:</strong> Latency Consistency.</p>
+</li>
+<li>
+<p><strong>The Mechanism:</strong> By disaggregating the compute-heavy phases from memory-heavy phases, you ensure that a heavy batch job never blocks a user&#8217;s chatbot interaction.</p>
+</li>
+<li>
+<p><strong>The ROI:</strong> Users experience "instant" perceived speed, preventing AI adoption from stalling due to poor performance.</p>
+</li>
+</ul>
 </div>
 </div>
 <div class="sect2">
 <h3 id="_3_sovereign_control_data_security"><a class="anchor" href="#_3_sovereign_control_data_security"></a>3. Sovereign Control &amp; Data Security</h3>
 <div class="paragraph">
-<p>Relying on public inference APIs means proprietary context leaves your perimeter. With llm-d, prompts and RAG context are processed entirely inside your OpenShift cluster—never sent to a third-party API. You get high-throughput inference while keeping compliance and data sovereignty.</p>
+<p>Relying on public, third-party inference APIs means your proprietary context leaves your perimeter.</p>
 </div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_stack_overview"><a class="anchor" href="#_stack_overview"></a>Stack Overview</h2>
-<div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
-<p><strong>Gateway API:</strong> Smart front door; intercepts requests and asks the scheduler where to send them.</p>
+<p><strong>The Win:</strong> Total Data Ownership.</p>
 </li>
 <li>
-<p><strong>Inference Scheduler (llm-d):</strong> Evaluates health, capacity, and cache affinity of workers and chooses the best destination.</p>
+<p><strong>The Mechanism:</strong> Proprietary data, RAG contexts, and user prompts are processed entirely within your secure OpenShift perimeter—never sent to a third-party API.</p>
 </li>
 <li>
-<p><strong>vLLM workers:</strong> Execution engines in your namespace; they load the model and serve inference using PagedAttention and continuous batching.</p>
+<p><strong>The ROI:</strong> You achieve the high-throughput speeds of public cloud APIs while maintaining strict compliance, privacy, and sovereignty over your Compound AI Systems.</p>
 </li>
 </ul>
 </div>
 </div>
 </div>
+</div>
 <div class="sect1">
-<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<h2 id="_system_prerequisites_building_the_foundation"><a class="anchor" href="#_system_prerequisites_building_the_foundation"></a>System Prerequisites: Building the Foundation</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Your cluster must have:</p>
+<p>Because <code>llm-d</code> is a complex, high-performance distributed system, it requires a specific infrastructure foundation. To successfully deploy the architectures discussed in this course, your cluster <strong>must</strong> have the following components installed and configured:</p>
 </div>
-<div class="ulist">
-<ul>
-<li>
-<p><strong>Kubernetes:</strong> OpenShift 4.19+ (4.20 recommended) with compliant Gateway API.</p>
-</li>
-<li>
-<p><strong>Compute:</strong> Data-center GPUs (e.g. NVIDIA L40S, A100, H100); NVIDIA GPU Operator and Node Feature Discovery (NFD).</p>
-</li>
-<li>
-<p><strong>Operators:</strong> Leader Worker Set (LWS) Operator for llm-d pod fleets.</p>
-</li>
-</ul>
-</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 40%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top"><strong>Component</strong></th>
+<th class="tableblock halign-left valign-top"><strong>Requirement</strong></th>
+<th class="tableblock halign-left valign-top"><strong>The "Why"</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Kubernetes</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">OpenShift 4.19 or greater, with 4.20 recommended.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A modern stack relying on the latest Gateway API integrations and networking features.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Networking</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compliant Gateway API</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">In OpenShift AI 3.0+, explicit configuration of the route pointing to the <code>openshift-ai-inference</code> gateway is required to expose and secure the service.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Workload Operator</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Leader Worker Set (LWS)</strong> Operator</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This is the secret sauce <code>llm-d</code> uses to manage pod fleets.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="title">A Note on Quotas and Queuing</div>
 <div class="paragraph">
-<p>Kueue manages <strong>who</strong> gets GPUs (quotas and queuing); llm-d manages <strong>where</strong> live traffic goes. For quota and queue setup, see the companion course on hardware profiles and GPU-as-a-Service.</p>
+<p>While <code>llm-d</code> acts as the traffic cop for live traffic routing, it does not dictate <strong>who</strong> gets the GPUs in the first place. That responsibility belongs to <strong>Kueue</strong>, which manages quotas and how distributed workloads consume them. We cover Kueue deployment and quota management extensively in our companion hardware profiles course.</p>
+</div>
+</td>
+</tr>
+</table>
 </div>
 <hr>
 <div class="paragraph">
-<p><strong>Ready to see how the pieces fit together? Next: Architecture deep dive.</strong></p>
+<p><strong>Ready to see what the factory floor is capable of? Let&#8217;s dive into the core features of llm-d.</strong></p>
 </div>
 </div>
 </div>
 <nav class="pagination">
-  <span class="next"><a href="chapter1/section1.html">Architecture Deep Dive</a></span>
+  <span class="next"><a href="chapter1/section1.html">Capabilities &amp; Features</a></span>
 </nav>
 </article>
   </div>
