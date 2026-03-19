@@ -1,0 +1,35 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: granite-distributed
+  namespace: llmd-deploy-lab
+  annotations:
+    opendatahub.io/model-type: generative
+    security.opendatahub.io/enable-auth: 'false'
+spec:
+  replicas: 2 
+  model:
+    uri: s3://models/granite3
+    name: granite-3.3-2b-instruct
+  router:
+    scheduler:
+      template:
+        containers:
+          - name: main
+            args:
+              - '--pool-group'
+              - 'inference.networking.x-k8s.io'
+              - '--pool-name'
+              - '{{ .ObjectMeta.Name }}-inference-pool'
+              - '--zap-encoder'
+              - 'json'
+  template:
+    containers:
+      - name: main
+        env:
+          - name: VLLM_ADDITIONAL_ARGS
+            value: "--max-model-len=16000 --gpu-memory-utilization=0.95"
+        resources:
+          limits:
+            nvidia.com/gpu: "1" 
+            memory: 12Gi

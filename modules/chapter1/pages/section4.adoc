@@ -33,8 +33,8 @@ Just like standard model deployment, we have packaged the "grunt work" into an a
 +
 [source,bash]
 ----
-git clone https://github.com/RedHatQuickCourses/rhoai3-llmd-deploy.git
-cd rhoai3-llmd-deploy
+git clone https://github.com/RedHatQuickCourses/rhoai3-llmd.git
+cd rhoai3-llmd/deploy
 ----
 
 . **Execute the Setup Pipeline:**

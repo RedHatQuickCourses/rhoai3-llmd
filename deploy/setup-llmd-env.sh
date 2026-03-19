@@ -1,26 +1,25 @@
 #!/bin/bash
 
 # =================================================================================
-# SCRIPT: fast-track.sh
-# DESCRIPTION: "The Emergency Button." 
-#              Sets up Serving prerequisites for users who skipped data labs.
+# SCRIPT: setup-llmd-env.sh
+# DESCRIPTION: Sets up the prerequisites for the llm-d Distributed Inference Lab.
 #              1. Deploys MinIO (The Vault).
-#              2. Creates the RHOAI Data Connection.
-#              3. Downloads a model (Ungated) and uploads to MinIO via a K8s Job.
+#              2. Creates the RHOAI Data Connection (storage-config).
+#              3. Downloads a model (Granite-3.3-2B) and uploads to MinIO via K8s Job.
 # =================================================================================
 
 set -e
 
 # --- CONFIGURATION ---
-NAMESPACE="model-deploy-lab"
-MODEL_ID="ibm-granite/granite-3.3-2b-instruct" # Using 2B for speed, change to 8b if needed
+NAMESPACE="llmd-deploy-lab"
+MODEL_ID="ibm-granite/granite-3.3-2b-instruct"
 S3_BUCKET="models"
 S3_FOLDER="granite3"
 MINIO_ACCESS_KEY="minio"
 MINIO_SECRET_KEY="minio123"
 SERVICE_ACCOUNT="fast-track-sa"
 
-echo "🚀 Starting Fast-Track Setup..."
+echo "🚀 Starting Distributed Inference Setup..."
 echo "🎯 Target Model: $MODEL_ID"
 echo "📂 Target Storage: s3://$S3_BUCKET/$S3_FOLDER"
 
@@ -37,17 +36,16 @@ else
     echo "✔ Namespace $NAMESPACE exists."
 fi
 
-# Deploy MinIO if missing
 echo "➤ Deploying MinIO Object Storage (The Vault)..."
-# We apply the folder containing Deployment, PVC, Service, and Route
-if [ -d "deploy/infrastructure/minio" ]; then
-    oc apply -f deploy/infrastructure/minio/ -n "$NAMESPACE"
+if [ -d "deploy/infrastructure" ]; then
+    oc apply -f deploy/infrastructure/minio-backend.yaml -n "$NAMESPACE"
+    oc apply -f deploy/infrastructure/s3ui-deployment.yaml -n "$NAMESPACE"
     echo "⏳ Waiting for MinIO to be ready..."
     oc wait --for=condition=available deployment/minio -n "$NAMESPACE" --timeout=300s || {
-        echo "⚠️  MinIO deployment not ready after 5 minutes, continuing anyway..."
+        echo "⚠️ MinIO deployment not ready after 5 minutes, continuing anyway..."
     }
 else
-    echo "❌ Error: MinIO YAML directory not found!"
+    echo "❌ Error: Infrastructure YAML directory not found!"
     exit 1
 fi
 
@@ -58,7 +56,6 @@ echo "----------------------------------------------------------------"
 echo "Step 2: Wiring RHOAI Data Connection..."
 
 # Create storage-config secret (required by KServe for InferenceService deployments)
-# This is the secret name that KServe webhook expects
 oc create secret generic storage-config \
     --from-literal=AWS_ACCESS_KEY_ID="$MINIO_ACCESS_KEY" \
     --from-literal=AWS_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY" \
@@ -66,18 +63,15 @@ oc create secret generic storage-config \
     --from-literal=AWS_DEFAULT_REGION="us-east-1" \
     --from-literal=AWS_S3_BUCKET="$S3_BUCKET" \
     -n "$NAMESPACE" \
-    --dry-run=client -o yaml | \
-    oc apply -f -
+    --dry-run=client -o yaml | oc apply -f -
 
-# Apply the labels to make it visible in the RHOAI Dashboard
-# Both dashboard=true and managed=true are required for visibility
 oc label secret storage-config \
     "opendatahub.io/dashboard=true" \
     "opendatahub.io/managed=true" \
     -n "$NAMESPACE" \
     --overwrite
 
-# Also create 'models' secret for the ingestion job (backward compatibility)
+# Create 'models' secret for the ingestion job
 oc create secret generic models \
     --from-literal=AWS_ACCESS_KEY_ID="$MINIO_ACCESS_KEY" \
     --from-literal=AWS_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY" \
@@ -85,27 +79,15 @@ oc create secret generic models \
     --from-literal=AWS_DEFAULT_REGION="us-east-1" \
     --from-literal=AWS_S3_BUCKET="$S3_BUCKET" \
     -n "$NAMESPACE" \
-    --dry-run=client -o yaml | \
-    oc apply -f -
+    --dry-run=client -o yaml | oc apply -f -
 
-# Apply the labels to make it visible in the RHOAI Dashboard
 oc label secret models \
     "opendatahub.io/dashboard=true" \
     "opendatahub.io/managed=true" \
     -n "$NAMESPACE" \
     --overwrite
 
-# Verify the secrets were created correctly
-if oc get secret storage-config -n "$NAMESPACE" > /dev/null 2>&1 && \
-   oc get secret models -n "$NAMESPACE" > /dev/null 2>&1; then
-    echo "✔ Data Connection secrets created:"
-    echo "   - 'storage-config' (for KServe InferenceService)"
-    echo "   - 'models' (for ingestion jobs)"
-    echo "   Both are labeled for OpenShift AI Dashboard visibility."
-else
-    echo "❌ Error: Failed to create data connection secrets!"
-    exit 1
-fi
+echo "✔ Data Connection secrets created."
 
 # ---------------------------------------------------------------------------------
 # 3. The Ingestion Job (The Loader)
@@ -116,7 +98,6 @@ echo "Step 3: Creating Ingestion Job..."
 oc create sa $SERVICE_ACCOUNT -n "$NAMESPACE" --dry-run=client -o yaml | oc apply -f -
 oc adm policy add-scc-to-user anyuid -z $SERVICE_ACCOUNT -n "$NAMESPACE" > /dev/null 2>&1
 
-# Python Ingestion Logic
 cat <<EOF > /tmp/fast_ingest.py
 import os
 import boto3
@@ -144,7 +125,6 @@ def main():
     except:
         pass
 
-    # Use the requested subfolder (granite4)
     for root, dirs, files in os.walk(local_dir):
         for file in files:
             local_path = os.path.join(root, file)
@@ -163,7 +143,6 @@ EOF
 
 oc create configmap fast-track-code --from-file=/tmp/fast_ingest.py -n "$NAMESPACE" --dry-run=client -o yaml | oc apply -f -
 
-# Submit Job
 oc delete job fast-track-loader -n "$NAMESPACE" --ignore-not-found
 
 cat <<YAML | oc apply -f -
@@ -189,7 +168,6 @@ spec:
         - name: code-volume
           mountPath: /scripts
         env:
-        # We read credentials from the NEW 'models' secret
         - name: AWS_ACCESS_KEY_ID
           valueFrom: { secretKeyRef: { name: models, key: AWS_ACCESS_KEY_ID } }
         - name: AWS_SECRET_ACCESS_KEY
@@ -203,27 +181,12 @@ spec:
           name: fast-track-code
 YAML
 
-echo "⏳ Job submitted. Waiting for model download and upload to complete..."
-echo "   This may take 5-15 minutes depending on model size and network speed..."
+echo "⏳ Job submitted. Waiting for model download and upload to complete (takes ~5-10 mins)..."
 
-# Wait for the job to complete with a generous timeout for large model downloads
-# Granite 4.0-micro is ~2GB, so we allow up to 20 minutes
-TIMEOUT=1200  # 20 minutes in seconds
+TIMEOUT=1200 
 if oc wait --for=condition=complete job/fast-track-loader -n "$NAMESPACE" --timeout=${TIMEOUT}s; then
-    echo "✅ Job completed successfully!"
-    echo ""
-    echo "📊 Job logs:"
-    oc logs job/fast-track-loader -n "$NAMESPACE" --tail=20
-    echo ""
-    echo "✅ Model is now available in MinIO at s3://$S3_BUCKET/$S3_FOLDER"
+    echo "✅ SUCCESS: Namespace, Vault, and Model Staged."
 else
-    echo "❌ Job failed or timed out after ${TIMEOUT} seconds."
-    echo "📊 Checking job status:"
-    oc get job fast-track-loader -n "$NAMESPACE"
-    echo ""
-    echo "📊 Recent job logs:"
-    oc logs job/fast-track-loader -n "$NAMESPACE" --tail=50 || echo "No logs available yet."
-    echo ""
-    echo "💡 To monitor manually, run: oc logs job/fast-track-loader -n $NAMESPACE -f"
+    echo "❌ Job failed or timed out."
     exit 1
 fi
