@@ -17,7 +17,7 @@ Distributed inference is a deeply integrated architecture that requires cluster-
 
 LLM inference often requires deploying a model across multiple GPUs, or even multiple physical nodes. Kubernetes natively uses `Deployments` or `StatefulSets`, but these are not optimized for distributed machine learning workloads where a "leader" pod must tightly coordinate with "worker" pods.
 
-* **The Requirement:** You must install the **LeaderWorkerSet** Operator from OperatorHub.
+* **The Requirement:** You must install the **LeaderWorkerSet** Operator from Ecosystem (OperatorHub).
 * **The "Why":** `llm-d` uses LWS under the hood to deploy the vLLM engine. It ensures that if one worker pod in a distributed inference group fails, the entire set is safely restarted to prevent split-brain execution and corrupted memory states.
 
 == 2. Activating the Distributed Workloads Components
